@@ -506,7 +506,7 @@ TEXTS_DIR := assets/text
 
 .DEFAULT_GOAL := all
 
-.PHONY: all extract split extract-ucode-windows extract-texts extract-sprites extract-fonts
+.PHONY: all extract split extract-texts extract-sprites extract-fonts
 .PHONY: FORCE
 .PHONY: clean clean-extracted clean-all-dangerous
 
@@ -519,13 +519,10 @@ FORCE:
 # ==============================================================================
 
 # Extract all assets required for a dev rebuild
-extract: split extract-ucode-windows extract-texts extract-sprites extract-fonts
+extract: split extract-texts extract-sprites extract-fonts
 
 split:
 	$(V)$(PYTHON) -m splat split ./config/$(REGION)/splat.$(REGION).yaml --modes code animationScripts bin hm64map seq
-
-extract-ucode-windows: split
-	$(V)$(PYTHON) tools/build/extract_ucode_windows.py $(BASEROM)
 
 extract-texts:
 	$(V)$(TEXT_EXTRACTOR) extract_all --modding
