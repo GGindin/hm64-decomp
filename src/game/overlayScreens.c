@@ -28,6 +28,10 @@
 #include "game/time.h"
 #include "game/tv.h"
 
+#if MODLOADER_ENABLE_PATCHES
+#include "modding/modMenu.h"
+#endif
+
 #include "mainLoop.h"
 
 #include "assetIndices/dialogues.h"
@@ -2197,6 +2201,10 @@ void loadPauseScreenCallback(void) {
 
 void initializePauseScreenBackground(void) {
     
+#if MODLOADER_ENABLE_PATCHES
+    closeModMenu();
+#endif
+
     dmaSprite(CHECKERBOARD_BACKGROUND, (u32)&_checkerboardBackgroundTextureSegmentRomStart, (u32)&_checkerboardBackgroundTextureSegmentRomEnd, (u32)&_checkerboardBackgroundAssetsIndexSegmentRomStart, (u32)&_checkerboardBackgroundAssetsIndexSegmentRomEnd, NULL, NULL, (u8*)OVERLAY_SCREEN_BACKGROUND_TEXTURE_BUFFER, NULL, (u16*)OVERLAY_SCREEN_BACKGROUND_PALETTE_BUFFER, (AnimationFrameMetadata*)OVERLAY_SCREEN_BACKGROUND_ANIMATION_FRAME_METADATA_BUFFER, (u32*)OVERLAY_SCREEN_BACKGROUND_TEXTURE_TO_PALETTE_LOOKUP_BUFFER, NULL, 0, FALSE);
     setSpriteViewSpacePosition(CHECKERBOARD_BACKGROUND, 0.0f, 0.0f, 0.0f);
     setSpriteScale(CHECKERBOARD_BACKGROUND, 2.0f, 2.0f, 1.0f);
@@ -2494,6 +2502,13 @@ void pauseScreenCallback(void) {
 
     u8 tempItem;
     u32 temp2;
+
+#if MODLOADER_ENABLE_PATCHES
+    if (checkModMenuOpen()) {
+        updateModMenu();
+        return;
+    }
+#endif
 
     switch (overlayScreenTable.screenState) {
 
@@ -2890,6 +2905,15 @@ void pauseScreenCallback(void) {
     }
 
     if (4 < overlayScreenTable.screenState && overlayScreenTable.screenState < 8) {
+
+#if MODLOADER_ENABLE_PATCHES
+        if (checkModMenuOpenShortcut()) {
+            openModMenu();
+            hideDownArrow();
+            hideUpArrow();
+            return;
+        }
+#endif
 
         if (checkButtonPressed(CONTROLLER_1, BUTTON_B)) {
             

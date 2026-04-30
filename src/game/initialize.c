@@ -40,6 +40,10 @@
 #include "game/time.h"
 #include "game/weather.h"
 
+#if MODLOADER_ENABLE_PATCHES
+#include "modding/modHooks.h"
+#endif
+
 #include "mainLoop.h"
 
 #include "buffers/buffers.h"
@@ -632,8 +636,12 @@ void initializeGameVariables(void) {
     
     memcpy(farmFieldTiles , D_80113580, FIELD_WIDTH * FIELD_HEIGHT);
     memcpy(greenhouseFieldTiles, D_80113760, FIELD_WIDTH * FIELD_HEIGHT);
-        
+
     albumBits |= PHOTO_GRANDPA;
+
+#if MODLOADER_ENABLE_PATCHES
+    initializeMods();
+#endif
 
 }
 

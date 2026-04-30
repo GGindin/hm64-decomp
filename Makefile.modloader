@@ -1,0 +1,32 @@
+# Modloader build options and generated mod glue.
+
+MOD ?=
+MOD_PATCHES ?= 0
+
+MOD_FILE := $(if $(MOD),$(if $(wildcard $(MOD)/mod.py),$(MOD)/mod.py,$(MOD)),)
+MOD_BUILD_FLAGS := $(if $(MOD_FILE),--mod $(MOD_FILE),)
+GENERATED_MOD_C := $(BUILD_DIR)/src/modding/generatedMod.c
+
+ifeq ($(MOD_PATCHES),1)
+  MACROS += -DMODLOADER_ENABLE_PATCHES=1
+
+MODDING_OBJECTS := \
+	$(BUILD_DIR)/src/modding/modApi.o \
+	$(BUILD_DIR)/src/modding/modHooks.o \
+	$(BUILD_DIR)/src/modding/modMenu.o \
+	$(BUILD_DIR)/src/modding/generatedMod.o
+else
+MODDING_OBJECTS :=
+endif
+
+$(BUILD_DIR)/src/modding/%.o: src/modding/%.c FORCE
+	$(MKDIR)
+	$(CC) $(CC_FLAG) $(OPTFLAGS) $(CFLAGS) $(DEBUG_FLAGS) $(CPPFLAGS) -c -o $@ $<
+
+$(GENERATED_MOD_C): FORCE $(TOOLS_DIR)/modding/build_mod.py $(MOD_FILE)
+	$(MKDIR)
+	$(V)$(PYTHON) $(TOOLS_DIR)/modding/build_mod.py $(MOD_BUILD_FLAGS) -o $@
+
+$(BUILD_DIR)/src/modding/generatedMod.o: $(GENERATED_MOD_C) FORCE
+	$(MKDIR)
+	$(CC) $(CC_FLAG) $(OPTFLAGS) $(CFLAGS) $(DEBUG_FLAGS) $(CPPFLAGS) -c -o $@ $<

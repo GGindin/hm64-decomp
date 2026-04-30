@@ -4,7 +4,13 @@ import argparse
 import struct
 from pathlib import Path
 
-import ipl3checksum
+try:
+    import ipl3checksum
+except ImportError as exc:
+    raise SystemExit(
+        "Missing Python dependency 'ipl3checksum'. "
+        "Run './tools/setup.sh' or build through 'bash tools/docker.sh make ...'."
+    ) from exc
 
 
 def update_crc(rom_bytes: bytearray, cic: str | None = None):

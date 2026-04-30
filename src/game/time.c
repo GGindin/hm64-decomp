@@ -12,6 +12,11 @@
 #include "game/player.h"
 #include "game/weather.h"
 
+#include "modding/modApi.h"
+#if MODLOADER_ENABLE_PATCHES
+#include "modding/modHooks.h"
+#endif
+
 #include "mainLoop.h"
 
 #include "assetIndices/maps.h"
@@ -21,6 +26,8 @@ void setGlobalSeasonName(u8);
 void toggleMonthlyLetterBits(void);
 void setupNewYear(void);
 void updateClock(u8);
+static void incrementClockBySeconds(u16);
+static u16 getClockIncrementSeconds(void);
 
 // shared bss
 u8 gSeconds;
@@ -92,10 +99,55 @@ void handleTimeUpdates(void) {
     
 }
 
+static void incrementClockBySeconds(u16 seconds) {
+
+    u32 totalSeconds;
+    u32 totalMinutes;
+    u32 hoursToAdvance;
+
+    if (seconds == 0) {
+        return;
+    }
+
+    totalSeconds = gSeconds + seconds;
+    gSeconds = totalSeconds % 60;
+
+    totalMinutes = gMinutes + (totalSeconds / 60);
+    gMinutes = totalMinutes % 60;
+
+    hoursToAdvance = totalMinutes / 60;
+
+    while (hoursToAdvance > 0) {
+        gHour++;
+
+        if (gHour == 6) {
+            gDayOfMonth++;
+            gDayOfWeek++;
+        }
+
+        if (gHour >= 24) {
+            gHour = 0;
+        }
+
+        hoursToAdvance--;
+    }
+
+}
+
+static u16 getClockIncrementSeconds(void) {
+
+#if MODLOADER_ENABLE_PATCHES
+    return getGameTimeSpeed();
+#else
+    return MOD_API_DEFAULT_GAME_TIME_SPEED;
+#endif
+
+}
+
 void updateClock(u8 incrementSeconds) {
 
     if (incrementSeconds == TRUE) {
-        gSeconds += 10;
+        incrementClockBySeconds(getClockIncrementSeconds());
     }
     
     if (gSeconds >= 60) {
@@ -211,7 +263,10 @@ void setClockNewDay(void) {
     
     gDayOfMonth++;
     gDayOfWeek++;
-   
+#if MODLOADER_ENABLE_PATCHES
+    resetModsForNewDay();
+#endif
+
     updateClock(FALSE);
 
 }

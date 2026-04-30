@@ -30,6 +30,10 @@
 #include "game/tv.h"
 #include "game/weather.h"
 
+#if MODLOADER_ENABLE_PATCHES
+#include "modding/modHooks.h"
+#endif
+
 #include "mainLoop.h"
 
 #include "buffers/buffers.h"
@@ -109,6 +113,10 @@ inline void launchIntroCutscene(u16 cutsceneIndex, u16 spawnPoint, u8 arg2) {
 void loadLevel(u8 arg0) {
 
     u8 mapIndex;
+
+#if MODLOADER_ENABLE_PATCHES
+    resetModsForMapLoad();
+#endif
 
     gCutsceneCompletionFlags = 0;
     gCutsceneIndex = 0;

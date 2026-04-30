@@ -70,6 +70,8 @@ ifeq ($(TESTING),1)
   MACROS += -DTESTING=1
 endif
 
+include Makefile.modloader
+
 # Common flags for both compilers
 CFLAGS_COMMON := -G0 -mgp32 -mfp32 -funsigned-char
 
@@ -504,20 +506,26 @@ TEXTS_DIR := assets/text
 
 .DEFAULT_GOAL := all
 
-.PHONY: all extract split extract-texts extract-sprites extract-fonts
+.PHONY: all extract split extract-ucode-windows extract-texts extract-sprites extract-fonts
+.PHONY: FORCE
 .PHONY: clean clean-extracted clean-all-dangerous
 
 all: $(TARGET)
+
+FORCE:
 
 # ==============================================================================
 # ASSET EXTRACTION
 # ==============================================================================
 
 # Extract all assets required for a dev rebuild
-extract: split extract-texts extract-sprites extract-fonts
+extract: split extract-ucode-windows extract-texts extract-sprites extract-fonts
 
 split:
 	$(V)$(PYTHON) -m splat split ./config/$(REGION)/splat.$(REGION).yaml --modes code animationScripts bin hm64map seq
+
+extract-ucode-windows: split
+	$(V)$(PYTHON) tools/build/extract_ucode_windows.py $(BASEROM)
 
 extract-texts:
 	$(V)$(TEXT_EXTRACTOR) extract_all --modding
@@ -699,6 +707,7 @@ CODE_OBJECTS := \
 	$(BUILD_DIR)/src/system/controller.o \
 	$(BUILD_DIR)/src/system/memory.o \
 	$(BUILD_DIR)/src/system/flags.o \
+	$(MODDING_OBJECTS) \
 	$(BUILD_DIR)/src/data/fieldTileMaps/fieldTiles.o \
 	$(BUILD_DIR)/src/game/gameStart.o \
 	$(BUILD_DIR)/src/game/initialize.o \
@@ -1010,8 +1019,9 @@ $(BASENAME).elf: $(OBJECTS) $(LD_SCRIPT)
 	$(V)$(LD) $(LDFLAGS) -o $@
 
 $(TARGET): $(BASENAME).elf
-	$(V)$(OBJCOPY) -O binary --gap-fill=0xFF $< $@
-	$(V)$(PYTHON) $(TOOLS_DIR)/build/makemask.py $@ --pad
+	$(V)$(OBJCOPY) -O binary --gap-fill=0xFF $< $@.tmp
+	$(V)$(PYTHON) $(TOOLS_DIR)/build/makemask.py $@.tmp --pad
+	$(V)mv $@.tmp $@
 
 # ==============================================================================
 # CLEAN

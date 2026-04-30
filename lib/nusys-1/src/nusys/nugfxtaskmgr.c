@@ -1,18 +1,19 @@
 #include <nusys.h>
+#include "macros.h"
 
 static NUScTask* nuGfxTask_ptr;
 
 static short taskDoneMsg;
 static short swapBufMsg;
-static OSThread	GfxTaskMgrThread;		
-static s32 D_801317B8[2];
-static u64 GfxTaskMgrStack[NU_GFX_TASKMGR_STACK_SIZE/8];
-static OSMesg nuGfxTaskMgrMesgBuf[NU_GFX_TASKMGR_MESGS];
+static OSThread	GfxTaskMgrThread ALIGNED(8);
+static s32 D_801317B8[2] ALIGNED(8);
+static u64 GfxTaskMgrStack[NU_GFX_TASKMGR_STACK_SIZE/8] ALIGNED(16);
+static OSMesg nuGfxTaskMgrMesgBuf[NU_GFX_TASKMGR_MESGS] ALIGNED(8);
 
 NUUcode* nuGfxUcode;
-NUScTask nuGfxTask[NU_GFX_TASK_NUM];	
+NUScTask nuGfxTask[NU_GFX_TASK_NUM] ALIGNED(16);
 volatile u32 nuGfxTaskSpool;		
-OSMesgQueue	nuGfxTaskMgrMesgQ;
+OSMesgQueue	nuGfxTaskMgrMesgQ ALIGNED(8);
 
 u16** nuGfxCfb;		
 u32 nuGfxCfbNum = 1;	
