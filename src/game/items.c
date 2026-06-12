@@ -10,7 +10,7 @@
 
 #include "game/animals.h"
 #include "game/cutscenes.h"
-#include "game/fieldObjects.h"
+#include "game/groundObjects.h"
 #include "game/game.h"
 #include "game/gameAudio.h"
 #include "game/gameFile.h"
@@ -21,6 +21,7 @@
 #include "game/player.h"
 #include "game/time.h"
 
+#include "assetIndices/cutscenes.h"
 #include "assetIndices/entities.h"
 #include "assetIndices/maps.h"
 #include "assetIndices/sfxs.h"
@@ -373,7 +374,7 @@ u16 itemEntityMetadata[224][5] = {
     { ENTITY_ASSET_STATIC_ITEM,   226,   226,   226,   226 }, /* 199 */
     { ENTITY_ASSET_STATIC_ITEM,   227,   227,   227,   227 }, /* 200 */
     { ENTITY_ASSET_STATIC_ITEM,   228,   228,   228,   228 }, /* 201 */
-    { ENTITY_ASSET_STATIC_ITEM,   231,   231,   231,   231 }, /* OPEN_BOOK_HELD_ITEM */
+    { ENTITY_ASSET_STATIC_ITEM,   231,   231,   231,   231 }, /* LIBRARY_BOOK_HELD_ITEM */
     { ENTITY_ASSET_STATIC_ITEM,   234,   234,   234,   234 }, /* SICKLE_HELD_ITEM */
     { ENTITY_ASSET_STATIC_ITEM,   235,   235,   235,   235 }, /* SILVER_SICKLE_HELD_ITEM */
     { ENTITY_ASSET_STATIC_ITEM,   236,   236,   236,   236 }, /* GOLDEN_SICKLE_HELD_ITEM */
@@ -601,7 +602,7 @@ u16 itemPaletteOverrides[] = {
     0xFFFF, /* 199 */
     0xFFFF, /* 200 */
     0xFFFF, /* 201 */
-    0xFFFF, /* OPEN_BOOK_HELD_ITEM */
+    0xFFFF, /* LIBRARY_BOOK_HELD_ITEM */
     0xFFFF, /* SICKLE_HELD_ITEM */
     0xFFFF, /* SILVER_SICKLE_HELD_ITEM */
     0xFFFF, /* GOLDEN_SICKLE_HELD_ITEM */
@@ -828,7 +829,7 @@ u8 heldItemDialogueItemIndices[] = {
      HELD_ITEM_DIALOGUE_BABY, /* 199 */
      HELD_ITEM_DIALOGUE_BABY, /* 200 */
      HELD_ITEM_DIALOGUE_BABY, /* 201 */
-     0, /* OPEN_BOOK_HELD_ITEM */
+     0, /* LIBRARY_BOOK_HELD_ITEM */
      0, /* SICKLE_HELD_ITEM */
      0, /* SILVER_SICKLE_HELD_ITEM */
      0, /* GOLDEN_SICKLE_HELD_ITEM */
@@ -1055,7 +1056,7 @@ u16 itemTextIndices[] = {
      319, /* 199 */
      319, /* 200 */
      319, /* 201 */
-       0, /* OPEN_BOOK_HELD_ITEM */
+       0, /* LIBRARY_BOOK_HELD_ITEM */
        0, /* SICKLE_HELD_ITEM */
        0, /* SILVER_SICKLE_HELD_ITEM */
        0, /* GOLDEN_SICKLE_HELD_ITEM */
@@ -1282,7 +1283,7 @@ u16 itemShippingValues[] = {
        0, /* 199 */
        0, /* 200 */
        0, /* 201 */
-       0, /* OPEN_BOOK_HELD_ITEM */
+       0, /* LIBRARY_BOOK_HELD_ITEM */
        0, /* SICKLE_HELD_ITEM */
        0, /* SILVER_SICKLE_HELD_ITEM */
        0, /* GOLDEN_SICKLE_HELD_ITEM */
@@ -1509,7 +1510,7 @@ u16 itemFlags[] = {
     ITEM_TOOL | ITEM_THROWABLE, /* 199 */
     ITEM_TOOL | ITEM_THROWABLE, /* 200 */
     ITEM_TOOL | ITEM_THROWABLE, /* 201 */
-    0, /* OPEN_BOOK_HELD_ITEM */
+    0, /* LIBRARY_BOOK_HELD_ITEM */
     0, /* SICKLE_HELD_ITEM */
     0, /* SILVER_SICKLE_HELD_ITEM */
     0, /* GOLDEN_SICKLE_HELD_ITEM */
@@ -1736,7 +1737,7 @@ u8 itemStaminaRestorationValue[] = {
      0, /* 199 */
      0, /* 200 */
      0, /* 201 */
-     0, /* OPEN_BOOK_HELD_ITEM */
+     0, /* LIBRARY_BOOK_HELD_ITEM */
      0, /* SICKLE_HELD_ITEM */
      0, /* SILVER_SICKLE_HELD_ITEM */
      0, /* GOLDEN_SICKLE_HELD_ITEM */
@@ -1963,7 +1964,7 @@ u8 itemFatigueReductionValue[] = {
     0, /* 199 */
     0, /* 200 */
     0, /* 201 */
-    0, /* OPEN_BOOK_HELD_ITEM */
+    0, /* LIBRARY_BOOK_HELD_ITEM */
     0, /* SICKLE_HELD_ITEM */
     0, /* SILVER_SICKLE_HELD_ITEM */
     0, /* GOLDEN_SICKLE_HELD_ITEM */
@@ -1989,14 +1990,14 @@ u8 itemFatigueReductionValue[] = {
 
 
 // rodata
-static const u8 D_80122340[];
-static const u8 D_80122344[];
-static const u8 D_80122348[];
-static const u8 D_8012234C[];
-static const u8 D_80122350[];
-static const u8 D_8012235C[];
-static const u8 D_80122368[];
-static const u8 D_80122374[];
+static const u8 silverToolSwingPatternCardinalFront[];
+static const u8 silverToolSwingPatternCardinalBack[];
+static const u8 silverToolSwingPatternDiagonalFront[];
+static const u8 silverToolSwingPatternDiagonalBack[];
+static const u8 goldenSickleSwingPatternFront[];
+static const u8 goldenSickleSwingPatternBack[];
+static const u8 goldenWateringCanSprayPatternFront[];
+static const u8 goldenWateringCanSprayPatternBack[];
 
 
 // forward declarations
@@ -2031,7 +2032,10 @@ void useMiraclePotion();
 void useCowMedicine();
 void useGrassSeeds();
 void useEmptyBottle();
+#ifndef JP
 u8 allocateGroundItemSlot(u8 index, u8 stateIndex, u32 heldItemIndex, u16 hasDirectionFrame, bool useAttachment);
+#endif
+u8 allocateThrownItemSlot(u8 index, u8 stateIndex, u32 heldItemIndex, u16 hasDirectionFrame, bool useAttachment);
 void setItemPosition(u8 index, f32 x, f32 y, f32 z);
 void loadHeldItemEntity(u8, u16);   
 bool handlePutDownHeldItem(u8 itemIndex);
@@ -2395,9 +2399,8 @@ void processToolUseState(void) {
 //     }
 // }
 
-//INCLUDE_ASM("asm/nonmatchings/game/itemHandlers", func_800D0360);
+// INCLUDE_ASM("asm/nonmatchings/game/items", useSickle);
 
-// sickle
 void useSickle(void) {
 
     Vec3f vec;
@@ -2419,14 +2422,14 @@ void useSickle(void) {
     
     u32 padding[2];
 
-    memcpy(arr1, D_80122340, 3);
-    memcpy(arr2, D_80122344, 3);
-    memcpy(arr3, D_80122348, 3);
-    memcpy(arr4, D_8012234C, 3);
-    memcpy(arr5, D_80122350, 9);
-    memcpy(arr6, D_8012235C, 9);
+    memcpy(arr1, silverToolSwingPatternCardinalFront, 3);
+    memcpy(arr2, silverToolSwingPatternCardinalBack, 3);
+    memcpy(arr3, silverToolSwingPatternDiagonalFront, 3);
+    memcpy(arr4, silverToolSwingPatternDiagonalBack, 3);
+    memcpy(arr5, goldenSickleSwingPatternFront, 9);
+    memcpy(arr6, goldenSickleSwingPatternBack, 9);
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
 
     switch (gPlayer.currentToolLevel) {
 
@@ -2504,7 +2507,11 @@ void useSickle(void) {
 
         addGroundObjectToMap(gBaseMapIndex, groundObjectIndex, (u8)vec.x - groundObjectsGridX, (u8)vec.z - groundObjectsGridZ);
            
+#ifdef _JP
+        temp3 = allocateThrownItemSlot(1, ITEM_STATE_THROW_LANDED, temp4, 0, 8);
+#else
         temp3 = allocateGroundItemSlot(1, ITEM_STATE_THROW_LANDED, temp4, 0, 8);
+#endif
 
         vec = getGroundObjectWorldPosition(0, (u8)vec.x, (u8)vec.z);
         setItemPosition(temp3, vec.x, vec.y, vec.z);
@@ -2571,7 +2578,7 @@ void useHoe(void) {
     u8 temp;
     s32 tempX, tempZ;
     
-    u8 direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    u8 direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
 
     switch (gPlayer.currentToolLevel) {
 
@@ -2684,7 +2691,7 @@ void useHoe(void) {
     
 }
 
-//INCLUDE_ASM("asm/nonmatchings/game/itemHandlers", func_800D0DD4);
+// INCLUDE_ASM("asm/nonmatchings/game/items", useAx);
 
 void useAx(void) {
     
@@ -2753,7 +2760,11 @@ void useAx(void) {
                     
                 }
 
-                groundObjectIndex = allocateGroundItemSlot(1, ITEM_STATE_THROW_LANDED, 0x3D, 0, 8);
+#ifdef _JP
+                groundObjectIndex = allocateThrownItemSlot(1, ITEM_STATE_THROW_LANDED, 61, 0, 8);
+#else
+                groundObjectIndex = allocateGroundItemSlot(1, ITEM_STATE_THROW_LANDED, 61, 0, 8);
+#endif
 
                 vec = getGroundObjectWorldPosition(MAIN_MAP_INDEX, (u8)vec.x, (u8)vec.z);
                 vec.x += vec2.x;
@@ -2815,7 +2826,7 @@ void useAx(void) {
     
 }
 
-//INCLUDE_ASM("asm/nonmatchings/game/itemHandlers", func_800D1DB0);
+// INCLUDE_ASM("asm/nonmatchings/game/items", useHammer);
 
 void useHammer(void) {
 
@@ -2846,7 +2857,11 @@ void useHammer(void) {
                     
                     toolUse.boulderHitCounter = 0;
                     
-                    groundObjectIndex = allocateGroundItemSlot(1, 12, 2, 0, 8);
+#ifdef _JP
+                        groundObjectIndex = allocateThrownItemSlot(1, 12, 2, 0, 8);
+#else
+                        groundObjectIndex = allocateGroundItemSlot(1, 12, 2, 0, 8);
+#endif
                     
                     vec = getGroundObjectWorldPosition(MAIN_MAP_INDEX, (u8)vec.x, (u8)vec.z);
                     vec.x += vec2.x;
@@ -2921,8 +2936,11 @@ void useHammer(void) {
 
                         }
 
+#ifdef _JP
+                        groundObjectIndex = allocateThrownItemSlot(1, 12, temp, 0, 8);
+#else
                         groundObjectIndex = allocateGroundItemSlot(1, 12, temp, 0, 8);
-
+#endif
                         vec = getGroundObjectWorldPosition(MAIN_MAP_INDEX, (u8)vec.x, (u8)vec.z);
                         vec.x += vec2.x;
                         vec.z += vec2.z;
@@ -3013,14 +3031,14 @@ void useWateringCan(void) {
     
     u32 padding[2];
 
-    memcpy(arr1, D_80122340, 3);
-    memcpy(arr2, D_80122344, 3);
-    memcpy(arr3, D_80122348, 3);
-    memcpy(arr4, D_8012234C, 3);
-    memcpy(arr5, D_80122368, 9);
-    memcpy(arr6, D_80122374, 9);
+    memcpy(arr1, silverToolSwingPatternCardinalFront, 3);
+    memcpy(arr2, silverToolSwingPatternCardinalBack, 3);
+    memcpy(arr3, silverToolSwingPatternDiagonalFront, 3);
+    memcpy(arr4, silverToolSwingPatternDiagonalBack, 3);
+    memcpy(arr5, goldenWateringCanSprayPatternFront, 9);
+    memcpy(arr6, goldenWateringCanSprayPatternBack, 9);
     
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
 
     switch (gPlayer.currentToolLevel) {
 
@@ -3185,9 +3203,9 @@ void useTurnipSeeds(void) {
 
     Vec3f vec;
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
     
-    if (direction < EAST) {
+    if (direction < DIRECTION_NE) {
         temp = toolSweepOffsetsLeft[toolUse.stepIndex];
     } else {
         temp = toolSweepOffsetsRight[toolUse.stepIndex];
@@ -3229,9 +3247,9 @@ void usePotatoSeeds(void) {
 
     Vec3f vec;
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
     
-    if (direction < EAST) {
+    if (direction < DIRECTION_NE) {
         temp = toolSweepOffsetsLeft[toolUse.stepIndex];
     } else {
         temp = toolSweepOffsetsRight[toolUse.stepIndex];
@@ -3273,9 +3291,9 @@ void useCabbageSeeds(void) {
 
     Vec3f vec;
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
     
-    if (direction < EAST) {
+    if (direction < DIRECTION_NE) {
         temp = toolSweepOffsetsLeft[toolUse.stepIndex];
     } else {
         temp = toolSweepOffsetsRight[toolUse.stepIndex];
@@ -3317,9 +3335,9 @@ void useTomatoSeeds(void) {
 
     Vec3f vec;
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
     
-    if (direction < EAST) {
+    if (direction < DIRECTION_NE) {
         temp = toolSweepOffsetsLeft[toolUse.stepIndex];
     } else {
         temp = toolSweepOffsetsRight[toolUse.stepIndex];
@@ -3361,9 +3379,9 @@ void useCornSeeds(void) {
 
     Vec3f vec;
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
     
-    if (direction < EAST) {
+    if (direction < DIRECTION_NE) {
         temp = toolSweepOffsetsLeft[toolUse.stepIndex];
     } else {
         temp = toolSweepOffsetsRight[toolUse.stepIndex];
@@ -3404,9 +3422,9 @@ void useEggplantSeeds(void) {
 
     Vec3f vec;
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
     
-    if (direction < EAST) {
+    if (direction < DIRECTION_NE) {
         temp = toolSweepOffsetsLeft[toolUse.stepIndex];
     }
     else {
@@ -3449,9 +3467,9 @@ void useStrawberrySeeds(void) {
 
     Vec3f vec;
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
     
-    if (direction < EAST) {
+    if (direction < DIRECTION_NE) {
         temp = toolSweepOffsetsLeft[toolUse.stepIndex];
     }
     else {
@@ -3493,9 +3511,9 @@ void useMoonDropSeeds(void) {
 
     Vec3f vec;
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
     
-    if (direction < EAST) {
+    if (direction < DIRECTION_NE) {
         temp = toolSweepOffsetsLeft[toolUse.stepIndex];
     }
     else {
@@ -3539,9 +3557,9 @@ void usePinkCatMintSeeds(void) {
 
     Vec3f vec;
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
     
-    if (direction < EAST) {
+    if (direction < DIRECTION_NE) {
         temp = toolSweepOffsetsLeft[toolUse.stepIndex];
     } else {
         temp = toolSweepOffsetsRight[toolUse.stepIndex];
@@ -3582,9 +3600,9 @@ void useBlueMistSeeds(void) {
 
     Vec3f vec;
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
     
-    if (direction < EAST) {
+    if (direction < DIRECTION_NE) {
         temp = toolSweepOffsetsLeft[toolUse.stepIndex];
     } else {
         temp = toolSweepOffsetsRight[toolUse.stepIndex];
@@ -3674,9 +3692,9 @@ void useGrassSeeds(void) {
 
     Vec3f vec;
 
-    direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+    direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
     
-    if (direction < EAST) {
+    if (direction < DIRECTION_NE) {
         temp = toolSweepOffsetsLeft[toolUse.stepIndex];
     }
     else {
@@ -3705,37 +3723,37 @@ void useGrassSeeds(void) {
 
 }
 
-static const u8 D_80122340[4] = { 2, 8, 6, 0 };
+static const u8 silverToolSwingPatternCardinalFront[4] = { 2, 8, 6, 0 };
 
-static const u8 D_80122344[4] = { 6, 8, 2, 0 };
+static const u8 silverToolSwingPatternCardinalBack[4] = { 6, 8, 2, 0 };
 
-static const u8 D_80122348[4] = { 3, 8, 5, 0 };
+static const u8 silverToolSwingPatternDiagonalFront[4] = { 3, 8, 5, 0 };
 
-static const u8 D_8012234C[4] = { 5, 8, 3, 0 };
+static const u8 silverToolSwingPatternDiagonalBack[4] = { 5, 8, 3, 0 };
 
-//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", D_80122340);
+//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", silverToolSwingPatternCardinalFront);
 
-//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", D_80122344);
+//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", silverToolSwingPatternCardinalBack);
 
-//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", D_80122348);
+//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", silverToolSwingPatternDiagonalFront);
 
-//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", D_8012234C);
+//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", silverToolSwingPatternDiagonalBack);
 
-//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", D_80122350);
+//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", goldenSickleSwingPatternFront);
 
-static const u8 D_80122350[12] = { 8, 0, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0 };
+static const u8 goldenSickleSwingPatternFront[12] = { 8, 0, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0 };
 
-//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", D_8012235C);
+//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", goldenSickleSwingPatternBack);
 
-static const u8 D_8012235C[12] = { 8, 0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0 };
+static const u8 goldenSickleSwingPatternBack[12] = { 8, 0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0 };
 
-//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", D_80122368);
+//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", goldenWateringCanSprayPatternFront);
 
-static const u8 D_80122368[12] = { 3, 4, 5, 2, 8, 6, 1, 0, 7, 0, 0, 0 };
+static const u8 goldenWateringCanSprayPatternFront[12] = { 3, 4, 5, 2, 8, 6, 1, 0, 7, 0, 0, 0 };
 
-//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", D_80122374);
+//INCLUDE_RODATA("asm/nonmatchings/game/itemHandlers", goldenWateringCanSprayPatternBack);
 
-static const u8 D_80122374[12] = { 5, 4, 3, 6, 8, 2, 7, 0, 1, 0, 0, 0 };
+static const u8 goldenWateringCanSprayPatternBack[12] = { 5, 4, 3, 6, 8, 2, 7, 0, 1, 0, 0, 0 };
  
 //INCLUDE_ASM("asm/nonmatchings/game/itemHandlers", handleBlueFeatherUse);
 
@@ -3921,7 +3939,10 @@ u8 allocateThrownItemSlot(u8 index, u8 stateIndex, u32 heldItemIndex, u16 hasDir
     }
     
     return index;
+
 }
+
+#ifndef _JP
 
 //INCLUDE_ASM("asm/nonmatchings/game/itemHandlers", allocateGroundItemSlot);
 
@@ -3954,6 +3975,8 @@ u8 allocateGroundItemSlot(u8 index, u8 stateIndex, u32 heldItemIndex, u16 hasDir
     return index;
 
 }
+
+#endif
 
 //INCLUDE_ASM("asm/nonmatchings/game/itemHandlers", clearHeldItemSlot);
 
@@ -4215,11 +4238,11 @@ bool handlePutDownHeldItem(u8 itemIndex) {
         case 0x6E:                                     
         case 0x6F:                                     
 
-            vec2 = projectEntityPosition(ENTITY_PLAYER, 32, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
+            vec2 = projectEntityPosition(ENTITY_PLAYER, 32, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
 
             gChickens[gPlayer.heldAnimalIndex].coordinates = vec2;
 
-            gChickens[gPlayer.heldAnimalIndex].direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            gChickens[gPlayer.heldAnimalIndex].direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             gChickens[gPlayer.heldAnimalIndex].location = gBaseMapIndex;
 
             gChickens[gPlayer.heldAnimalIndex].flags &= ~8;
@@ -4237,11 +4260,11 @@ bool handlePutDownHeldItem(u8 itemIndex) {
         case 0x5E:                                     
         case 0x5F:                              
 
-            vec3 = projectEntityPosition(ENTITY_PLAYER, 32, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
+            vec3 = projectEntityPosition(ENTITY_PLAYER, 32, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
 
             dogInfo.coordinates = vec3;
 
-            dogInfo.direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            dogInfo.direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             dogInfo.location = gBaseMapIndex;
 
             dogInfo.flags &= ~DOG_HELD;
@@ -4258,8 +4281,8 @@ bool handlePutDownHeldItem(u8 itemIndex) {
         case 0xB0:                                     
         case 0xB1:                                     
         case 0xB2:     
-            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
-            direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
+            direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             initializeMiscAnimalEntity(spawnMiscAnimal(0, direction, vec.x, vec.y, vec.z), 0);
 
             break;
@@ -4272,8 +4295,8 @@ bool handlePutDownHeldItem(u8 itemIndex) {
         case 0x80:                                     
         case 0x81:                                     
         case 0x82: 
-            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
-            direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
+            direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             initializeMiscAnimalEntity(spawnMiscAnimal(1, direction, vec.x, vec.y, vec.z), 0);
 
             break;
@@ -4286,8 +4309,8 @@ bool handlePutDownHeldItem(u8 itemIndex) {
         case 0x88:                                     
         case 0x89:                                     
         case 0x8A:        
-            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
-            direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
+            direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             initializeMiscAnimalEntity(spawnMiscAnimal(2, direction, vec.x, vec.y, vec.z), 0);
 
             break;
@@ -4300,8 +4323,8 @@ bool handlePutDownHeldItem(u8 itemIndex) {
         case 0x90:                                     
         case 0x91:                                     
         case 0x92:   
-            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
-            direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
+            direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             initializeMiscAnimalEntity(spawnMiscAnimal(7, direction, vec.x, vec.y, vec.z), 0);
 
             break;       
@@ -4314,8 +4337,8 @@ bool handlePutDownHeldItem(u8 itemIndex) {
         case 0x98:                                     
         case 0x99:                                     
         case 0x9A:  
-            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
-            direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
+            direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             initializeMiscAnimalEntity(spawnMiscAnimal(9, direction, vec.x, vec.y, vec.z), 0);
 
             break;     
@@ -4328,8 +4351,8 @@ bool handlePutDownHeldItem(u8 itemIndex) {
         case 0xA0:                                     
         case 0xA1:                                     
         case 0xA2:         
-            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
-            direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
+            direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             initializeMiscAnimalEntity(spawnMiscAnimal(8, direction, vec.x, vec.y, vec.z), 0);
             break;     
         
@@ -4341,8 +4364,8 @@ bool handlePutDownHeldItem(u8 itemIndex) {
         case 0xA8:                                     
         case 0xA9:                                     
         case 0xAA:    
-            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
-            direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
+            direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             initializeMiscAnimalEntity(spawnMiscAnimal(10, direction, vec.x, vec.y, vec.z), 0);
             break;     
 
@@ -4378,9 +4401,9 @@ bool handlePutDownHeldItem(u8 itemIndex) {
                     break;
             }
 
-            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
+            vec = projectEntityPosition(ENTITY_PLAYER, 32, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
 
-            direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             vec.y = entities[ENTITY_PLAYER].coordinates.y;
             
             initializeMiscAnimalEntity(spawnMiscAnimal(temp, direction, vec.x, vec.y, vec.z), 1);
@@ -4395,7 +4418,7 @@ bool handlePutDownHeldItem(u8 itemIndex) {
             gChickens[gPlayer.heldAnimalIndex].coordinates.y = 0;
             gChickens[gPlayer.heldAnimalIndex].coordinates.z = -148.0f;
             
-            gChickens[gPlayer.heldAnimalIndex].direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            gChickens[gPlayer.heldAnimalIndex].direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             gChickens[gPlayer.heldAnimalIndex].location = gBaseMapIndex;
             
             gChickens[gPlayer.heldAnimalIndex].flags &= ~8;
@@ -4438,7 +4461,7 @@ bool handlePutDownHeldItem(u8 itemIndex) {
 
             npcs[BABY].levelIndex = HOUSE;
             npcs[BABY].startingCoordinates.y = 0;
-            npcs[BABY].direction = SOUTHWEST;
+            npcs[BABY].direction = DIRECTION_S;
             npcs[BABY].defaultAnimationMode = NPC_ANIMATION_WANDER;
             npcs[BABY].idleAnimation = 0;
             npcs[BABY].animationMode = NPC_ANIMATION_WANDER;
@@ -4462,14 +4485,14 @@ bool handlePutDownHeldItem(u8 itemIndex) {
         case 0xC8:                                     
         case 0xC9:                               
 
-            vec4 = projectEntityPosition(ENTITY_PLAYER, 32, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
+            vec4 = projectEntityPosition(ENTITY_PLAYER, 32, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX));
 
             npcs[BABY].startingCoordinates = vec4;
 
             npcs[BABY].levelIndex = gBaseMapIndex;
             npcs[BABY].flags |= 1;
 
-            npcs[BABY].direction = convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
+            npcs[BABY].direction = convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX);
             npcs[BABY].defaultAnimationMode = NPC_ANIMATION_CUSTOM;
             npcs[BABY].idleAnimation = 57;
             npcs[BABY].animationMode = NPC_ANIMATION_CUSTOM;
@@ -4755,7 +4778,7 @@ void updateHeldItemState(void) {
 
                         setEntityTrackingTarget(ENTITY_ITEM_BASE_INDEX + i, 0xFFFF, 0xFF);
 
-                        vec = getMovementVectorFromDirection(4.0f, convertWorldToSpriteDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX), 0.0f);
+                        vec = getMovementVectorFromDirection(4.0f, convertScreenDirectionToWorldDirection(entities[ENTITY_PLAYER].direction, MAIN_MAP_INDEX), 0.0f);
 
                         itemInfo[i].movement = vec;
 
@@ -4964,27 +4987,27 @@ void updateHeldItemState(void) {
                                 if (checkSpecialDialogueBit(HARVEST_GODDESS_OFFERING_ADVICE_DIALOGUE)) {
                                     
                                     if (!checkSpecialDialogueBit(GRAPEVINE_SPIRIT_AWAKENED_DIALOGUE)) {
-                                         gCutsceneIndex = 344;
+                                         gCutsceneIndex = CUTSCENE_MOUNTAIN_HARVEST_GODDESS_GRAPEVINE_OFFERING;
                                     } else {
-                                         gCutsceneIndex = 341;
+                                         gCutsceneIndex = CUTSCENE_MOUNTAIN_HARVEST_GODDESS_OFFERING;
                                     }
-                                    
+
                                 } else {
-                                    gCutsceneIndex = 341;
+                                    gCutsceneIndex = CUTSCENE_MOUNTAIN_HARVEST_GODDESS_OFFERING;
                                 }
-                                
-                                loadCutscene(0);
-                                
+
+                                loadCutscene(FALSE);
+
                             }
-                            
+
                             if (checkDailyEventBit(KAPPA_FISH_OFFERING_DAILY)) {
-                                gCutsceneIndex = 336;
-                                loadCutscene(0);
+                                gCutsceneIndex = CUTSCENE_MOUNTAIN_KAPPA_GIFT;
+                                loadCutscene(FALSE);
                             }
-                            
+
                             if (checkDailyEventBit(KAPPA_LARGE_FISH_OFFERING_DAILY)) {
-                                gCutsceneIndex = 337;
-                                loadCutscene(0);
+                                gCutsceneIndex = CUTSCENE_MOUNTAIN_KAPPA_POWER_NUT;
+                                loadCutscene(FALSE);
                             } 
                             
                         } else {

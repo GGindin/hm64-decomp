@@ -30,9 +30,9 @@ static LookAt gSPLookAtBufferA;
 static LookAt gSPLookAtBufferB;
 
 Camera gCamera;
-Gfx initGfxList[2][0x20];
-Gfx sceneGraphDisplayList[2][0x500];
-Gfx D_80205000[2][0x20];
+Gfx initGfxList[2][0x20] __attribute__((aligned(16)));
+Gfx sceneGraphDisplayList[2][0x500] __attribute__((aligned(16)));
+Gfx viewportGfxList[2][0x20] __attribute__((aligned(16)));
                         
 // rodata
 static const char gfxExceptionStr1[] = "EX";
@@ -107,24 +107,25 @@ volatile u8 startGfxTask(void) {
     gfxTaskNo += 1;
     
     return gfxTaskNo;
+    
 }
 
 //INCLUDE_ASM("asm/nonmatchings/system/graphic", doViewportGfxTask);
 
 volatile u8 doViewportGfxTask(void) {
 
-    Gfx *dl = D_80205000[gGraphicsBufferIndex];
+    Gfx *dl = viewportGfxList[gGraphicsBufferIndex];
     
     gSPDisplayList(dl++, OS_K0_TO_PHYSICAL(&viewportDL));
     gDPFullSync(dl++);
     gSPEndDisplayList(dl++);
 
-    if (dl - D_80205000[gGraphicsBufferIndex] >= 32) {
+    if (dl - viewportGfxList[gGraphicsBufferIndex] >= 32) {
         // FIXME: get string literals working
         __assert(&gfxExceptionStr1, &gfxExceptionStr2, 319);
     }
 
-    nuGfxTaskStart(D_80205000[gGraphicsBufferIndex], (s32)(dl - D_80205000[gGraphicsBufferIndex]) * sizeof(Gfx), NU_GFX_UCODE_F3DEX, NU_SC_SWAPBUFFER);
+    nuGfxTaskStart(viewportGfxList[gGraphicsBufferIndex], (s32)(dl - viewportGfxList[gGraphicsBufferIndex]) * sizeof(Gfx), NU_GFX_UCODE_F3DEX, NU_SC_SWAPBUFFER);
     
     gfxTaskNo += 1;
 
@@ -664,15 +665,19 @@ f32 evaluatePlaneEquation(f32 arg0, f32 arg1, f32 arg2, Plane coordinates) {
 
 //INCLUDE_RODATA("asm/nonmatchings/systemgraphic", directionsToYValues);
 
+// Indexed by world-compass direction (DIRECTION_*, CW from S). The Y angle is
+// applied to (0, y, +Z) to produce a movement vector in world coordinates;
+// world Y rotation is then added at render time so the on-screen direction
+// tracks the player's intent regardless of map rotation. Note +Z = world-S.
 static const f32 directionsToYValues[8] = {
-    0.0f,   // north
-    315.0f, // northeast
-    270.0f, // east
-    225.0f, // southeast 
-    180.0f, // south
-    135.0f, // southwest
-    90.0f,  // west
-    45.0f   // northwest
+    0.0f,   // DIRECTION_S  (+Z)
+    315.0f, // DIRECTION_SW
+    270.0f, // DIRECTION_W  (-X)
+    225.0f, // DIRECTION_NW
+    180.0f, // DIRECTION_N  (-Z)
+    135.0f, // DIRECTION_NE
+    90.0f,  // DIRECTION_E  (+X)
+    45.0f   // DIRECTION_SE
 };
 
 //INCLUDE_ASM("asm/nonmatchings/system/graphic", getMovementVectorFromDirection);

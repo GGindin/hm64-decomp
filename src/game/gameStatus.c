@@ -6,7 +6,7 @@
 #include "game/animals.h"
 #include "game/game.h"
 #include "game/level.h"
-#include "game/fieldObjects.h"
+#include "game/groundObjects.h"
 #include "game/npc.h"
 #include "game/overlayScreens.h"
 #include "game/player.h"
@@ -603,7 +603,7 @@ void updateFarmStatusTyphoon(void) {
 
         if (!getRandomNumberInRange(0, 3)) {
 
-            memcpy(greenhouseFieldTiles, D_80113760, FIELD_HEIGHT * FIELD_WIDTH);
+            memcpy(greenhouseFieldTiles, greenhouseResetFieldTiles, FIELD_HEIGHT * FIELD_WIDTH);
 
             setLifeEventBit(GREENHOUSE_DESTROYED);
             clearLifeEventBit(HAVE_GREENHOUSE);

@@ -59,11 +59,11 @@ u8 globalBobbingFrameCounter;
 u8 gridPositionToX[1596];
 u8 gridPositionToZ[1596];
 
-Gfx mapDisplayList[2][6912];
+Gfx mapDisplayList[2][6912] __attribute__((aligned(16)));
 Vtx tileVertices[2][2560];
 
 Vtx groundObjectVertices[2][320][4];
-Gfx groundObjectBitmapsDisplayList[2][0x1000];
+Gfx groundObjectBitmapsDisplayList[2][0x1000] __attribute__((aligned(16)));
 
 u16 previousGridPositionForTileTexture[MAX_TILE_TEXTURES];
 
@@ -838,7 +838,7 @@ bool deactivateMapObject(u16 mapIndex, u8 index) {
 
 // load and set texture for map spawnable sprite
 // called by level.c
-bool loadGroundObjects(u16 mapIndex, u8 x, u8 z, u32* textureIndex, u32* paletteIndex, u8* spriteToPaletteIndex, u32 romTextureStart, u32 arg7, u32 romAssetsIndexStart, u32 romAssetsIndexEnd, u8 argA) {
+bool loadGroundObjects(u16 mapIndex, u8 x, u8 z, u32* textureIndex, u32* paletteIndex, u8* spriteToPaletteIndex, u32 romTextureStart, u32 romTextureEnd, u32 romAssetsIndexStart, u32 romAssetsIndexEnd, u8 y) {
 
     bool result = FALSE;
     
@@ -860,7 +860,7 @@ bool loadGroundObjects(u16 mapIndex, u8 x, u8 z, u32* textureIndex, u32* palette
         mainMap[mapIndex].groundObjects.x = x;
         mainMap[mapIndex].groundObjects.z = z;
 
-        mainMap[mapIndex].groundObjects.unk_12 = argA;
+        mainMap[mapIndex].groundObjects.y = y;
         
         nuPiReadRom(romAssetsIndexStart, assetIndex, romAssetsIndexEnd - romAssetsIndexStart);
         
@@ -1749,7 +1749,7 @@ void setMapGrid(MapGrid* mapGrid, u8* data) {
 //INCLUDE_ASM("asm/nonmatchings/system/map", func_80037350);
 
 // unused
-u8* func_80037350(TileRenderingInfo* tileRenderingInfo, u8* data) {
+u8* func_80037350_US(TileRenderingInfo* tileRenderingInfo, u8* data) {
 
     // arg1 = &*(arg1+4);
     // skip header
@@ -1795,7 +1795,7 @@ u8* func_80037388(TileRenderingInfo* tileRenderingInfo, u8* data, u8 arg2) {
 
 //INCLUDE_ASM("asm/nonmatchings/system/map", func_80037400);
 
-inline u8* func_80037400(TileRenderingInfo* tileRenderingInfo, u8* data, bool flag) {
+inline u8* func_80037400_US(TileRenderingInfo* tileRenderingInfo, u8* data, bool flag) {
     
     Swap16 swap;
     u8 i;
@@ -1874,7 +1874,7 @@ u8* func_800374C0(TileRenderingInfo* tileRenderingInfo, u8* data) {
 
     if (tileRenderingInfo->flags & 0x80) {
 
-        data = func_80037400(tileRenderingInfo, data, flags & 0x40);
+        data = func_80037400_US(tileRenderingInfo, data, flags & 0x40);
         
     } else {
 
@@ -2976,7 +2976,7 @@ void setupWeatherSprites(MainMap* mainMap) {
 
                 if (!(getRandomNumberInRange(0, 4))) {
                 
-                    globalSprites[mainMap->weatherSprites[i].spriteIndex].stateFlags &= ~SPRITE_ANIMATION_STATE_CHANGED;
+                    globalSprites[mainMap->weatherSprites[i].spriteIndex].stateFlags &= ~SPRITE_ANIMATION_CYCLE_ENDED;
                     startSpriteAnimation(mainMap->weatherSprites[i].spriteIndex, mainMap->weatherSprites[i].animationIndex, 0xFE);
                     
                     mainMap->weatherSprites[i].flags |= MAP_WEATHER_SPRITE_ANIMATION_STARTED;
@@ -3459,7 +3459,7 @@ void renderGroundObjects(MainMap* mainMap) {
     
     dl = groundObjectBitmapsDisplayList[index];
 
-     if (mainMap->groundObjects.unk_12) {
+     if (mainMap->groundObjects.y) {
 
         for (i = 0; i < MAX_GROUND_OBJECTS; i++) {
 
@@ -3479,7 +3479,7 @@ void renderGroundObjects(MainMap* mainMap) {
 
                          addGroundObjectToSceneGraph(mainMap, 
                             temp1 + (gridIndexToTileIndexX[gridIndex] * 32) + mainMap->groundObjectBitmaps[i].coordinates.x, 
-                            mainMap->groundObjects.unk_12 + mainMap->groundObjectBitmaps[i].coordinates.y, 
+                            mainMap->groundObjects.y + mainMap->groundObjectBitmaps[i].coordinates.y, 
                             temp2 + (gridIndexToTileIndexZ[gridIndex] * 32) + mainMap->groundObjectBitmaps[i].coordinates.z, 
                             arr[6], arr[7], startingPositionDl);
                          

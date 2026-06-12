@@ -8,8 +8,11 @@
 #include "system/map.h"
 #include "system/mapController.h"
 
-#include "mainproc.h"
 #include "game/npc.h"
+
+#include "mainproc.h"
+
+#include "data/animation/entityAnimationScripts/entityAnimationScripts.h"
 
 // bss
 Entity entities[MAX_ENTITIES];
@@ -567,7 +570,7 @@ bool setEntityAnimation(u16 index, u16 animationIndex) {
             entities[index].flags |= ENTITY_IS_CURRENTLY_ANIMATED;
             entities[index].flags &= ~ENTITY_ANIMATION_TRACKS_DIRECTION; 
 
-            globalSprites[entities[index].globalSpriteIndex].stateFlags &= ~SPRITE_ANIMATION_STATE_CHANGED;
+            globalSprites[entities[index].globalSpriteIndex].stateFlags &= ~SPRITE_ANIMATION_CYCLE_ENDED;
             globalSprites[entities[index].globalSpriteIndex].audioTrigger = FALSE;
             
             result = TRUE;
@@ -592,7 +595,7 @@ bool setEntityDirectionalAnimation(u16 index, u16 animationIndex) {
             entities[index].animationIndices.animationIndex = animationIndex;
             entities[index].flags |= (ENTITY_IS_CURRENTLY_ANIMATED | ENTITY_ANIMATION_TRACKS_DIRECTION);
     
-            globalSprites[entities[index].globalSpriteIndex].stateFlags &= ~SPRITE_ANIMATION_STATE_CHANGED;
+            globalSprites[entities[index].globalSpriteIndex].stateFlags &= ~SPRITE_ANIMATION_CYCLE_ENDED;
     
             result = TRUE;
     
@@ -699,9 +702,9 @@ void pauseEntities(void) {
     
 }
 
-//INCLUDE_ASM("asm/nonmatchings/system/entity", togglePauseEntities);
+//INCLUDE_ASM("asm/nonmatchings/system/entity", unpauseEntities);
 
-void togglePauseEntities(void) {
+void unpauseEntities(void) {
 
     u16 i;
 
@@ -995,7 +998,7 @@ bool checkEntityAnimationStateChanged(u16 index) {
     if (index < MAX_ENTITIES) {
 
         if (entities[index].flags & ENTITY_ACTIVE) {
-            result = checkSpriteAnimationStateChanged(entities[index].globalSpriteIndex);
+            result = checkSpriteAnimationCycleEnded(entities[index].globalSpriteIndex);
         }
 
     }
@@ -1269,7 +1272,7 @@ u16 checkEntityProximity(u16 index, f32 x, f32 z, u16 buttonPressed) {
                 worldCoordinates.z = z;
 
                 rotationAngles.x = 0;
-                // FIXME: macro not working; should be convertWorldToSpriteDirection(entities[index].direction, gMainMapIndex)
+                // FIXME: macro not working; should be convertScreenDirectionToWorldDirection(entities[index].direction, gMainMapIndex)
                 rotationAngles.y = getSpriteYValueFromDirection((entities[index].direction + getCurrentMapRotation(gMainMapIndex)) % 8);
                 rotationAngles.z = 0;
 
@@ -1372,7 +1375,7 @@ u8 getLevelInteractionIndexFromEntityPosition(u16 entityIndex, f32 x, f32 z) {
                 worldCoordinates.z = z;
 
                 rotation.x = 0;
-                rotation.y = getSpriteYValueFromDirection(convertWorldToSpriteDirection(entities[entityIndex].direction, gMainMapIndex));
+                rotation.y = getSpriteYValueFromDirection(convertScreenDirectionToWorldDirection(entities[entityIndex].direction, gMainMapIndex));
                 rotation.z = 0;
                 
                 rotateVector3D(worldCoordinates, &rotatedPosition, rotation);
@@ -1519,7 +1522,7 @@ Vec3f getEntityRelativeGroundObjectCoords(u16 entityIndex, f32 arg2, f32 arg3) {
             vec.z = arg3;
 
             rotation.x = 0;
-            rotation.y = getSpriteYValueFromDirection(convertWorldToSpriteDirection(entities[entityIndex].direction, gMainMapIndex));
+            rotation.y = getSpriteYValueFromDirection(convertScreenDirectionToWorldDirection(entities[entityIndex].direction, gMainMapIndex));
             rotation.z = 0;
 
             rotateVector3D(vec, &rotatedPosition, rotation);
@@ -1636,7 +1639,7 @@ Vec3f getEntityRelativeTilePosition(u16 entityIndex, f32 x, f32 z) {
             worldCoordinates.z = z;
 
             rotation.x = 0;
-            rotation.y = getSpriteYValueFromDirection(convertWorldToSpriteDirection(entities[entityIndex].direction, gMainMapIndex));
+            rotation.y = getSpriteYValueFromDirection(convertScreenDirectionToWorldDirection(entities[entityIndex].direction, gMainMapIndex));
             rotation.z = 0;
 
             rotateVector3D(worldCoordinates, &rotatedCoordinates, rotation);
@@ -1717,7 +1720,7 @@ Vec3f getEntityRelativeTileCoords(u16 entityIndex, f32 x, f32 z) {
             position.z = z;
 
             rotation.x = 0;
-            rotation.y = getSpriteYValueFromDirection(convertWorldToSpriteDirection(entities[entityIndex].direction, gMainMapIndex));
+            rotation.y = getSpriteYValueFromDirection(convertScreenDirectionToWorldDirection(entities[entityIndex].direction, gMainMapIndex));
             rotation.z = 0;
 
             rotateVector3D(position, &rotatedCoordinates, rotation);
@@ -2042,13 +2045,13 @@ u16 attemptEntityMovement(u16 index) {
 
     Vec3f projectedPosition;
 
-    u16 collisionFlags = checkTerrainMovementCollision(&entities[index], entities[index].movementVector.x, entities[index].movementVector.z, convertWorldToSpriteDirection(entities[index].direction, gMainMapIndex));
+    u16 collisionFlags = checkTerrainMovementCollision(&entities[index], entities[index].movementVector.x, entities[index].movementVector.z, convertScreenDirectionToWorldDirection(entities[index].direction, gMainMapIndex));
 
     if (collisionFlags) {
 
-        projectedPosition = getMovementVectorFromDirection(entities[index].speed, convertWorldToSpriteDirection(entities[index].direction, gMainMapIndex), 0.0f);
+        projectedPosition = getMovementVectorFromDirection(entities[index].speed, convertScreenDirectionToWorldDirection(entities[index].direction, gMainMapIndex), 0.0f);
 
-        collisionFlags = checkTerrainMovementCollision(&entities[index], projectedPosition.x, projectedPosition.z, convertWorldToSpriteDirection(entities[index].direction, gMainMapIndex));
+        collisionFlags = checkTerrainMovementCollision(&entities[index], projectedPosition.x, projectedPosition.z, convertScreenDirectionToWorldDirection(entities[index].direction, gMainMapIndex));
         
         if (!collisionFlags) {
             entities[index].movementVector.x = projectedPosition.x;
@@ -2068,14 +2071,14 @@ void doEntityPathfinding(u16 index) {
     Vec3f projectedPosition;
     u8 direction;
 
-    u16 collisionFlags = checkTerrainMovementCollision(&entities[index], entities[index].movementVector.x, entities[index].movementVector.z, convertWorldToSpriteDirection(entities[index].direction, gMainMapIndex));
+    u16 collisionFlags = checkTerrainMovementCollision(&entities[index], entities[index].movementVector.x, entities[index].movementVector.z, convertScreenDirectionToWorldDirection(entities[index].direction, gMainMapIndex));
 
     if ((collisionFlags & 0xFF00) != 0xFF00) {
 
         if (collisionFlags & 0xF0F) {            
             
             // try right turn
-            direction = (convertWorldToSpriteDirection(entities[index].direction, gMainMapIndex) + 1) % 8;
+            direction = (convertScreenDirectionToWorldDirection(entities[index].direction, gMainMapIndex) + 1) % 8;
     
             projectedPosition = getMovementVectorFromDirection(entities[index].speed, direction, 0.0f);
     
@@ -2092,7 +2095,7 @@ void doEntityPathfinding(u16 index) {
         if (collisionFlags & 0xF0F0) {
 
             // try left turn
-            direction = (convertWorldToSpriteDirection(entities[index].direction, gMainMapIndex) + 7) % 8;
+            direction = (convertScreenDirectionToWorldDirection(entities[index].direction, gMainMapIndex) + 7) % 8;
 
             projectedPosition = getMovementVectorFromDirection(entities[index].speed, direction, 0.0f);
 
@@ -2108,9 +2111,9 @@ void doEntityPathfinding(u16 index) {
         
     } else {
     
-        projectedPosition = getMovementVectorFromDirection(entities[index].speed, convertWorldToSpriteDirection(entities[index].direction, gMainMapIndex), 0.0f);
+        projectedPosition = getMovementVectorFromDirection(entities[index].speed, convertScreenDirectionToWorldDirection(entities[index].direction, gMainMapIndex), 0.0f);
 
-        if (checkTerrainMovementCollision(&entities[index], projectedPosition.x, projectedPosition.z, convertWorldToSpriteDirection(entities[index].direction, gMainMapIndex)) & 0xFFFF) {
+        if (checkTerrainMovementCollision(&entities[index], projectedPosition.x, projectedPosition.z, convertScreenDirectionToWorldDirection(entities[index].direction, gMainMapIndex)) & 0xFFFF) {
             entities[index].movementVector.x = 0.0f;
             entities[index].movementVector.z = 0.0f;
         } else {
@@ -2331,15 +2334,15 @@ void updateEntities(void) {
 
                     switch (animationType) {
 
-                        case 0:
+                        case ANIM_TYPE_ONE_SHOT:
                             startSpriteAnimation(entities[i].globalSpriteIndex, animationMetadataIndex, 0xFF);
                             break;
 
-                        case 0x2000: 
+                        case ANIM_TYPE_LOOP: 
                             startSpriteAnimation(entities[i].globalSpriteIndex, animationMetadataIndex, 0xFE);
                             break;
                         
-                        case 0x4000:
+                        case ANIM_TYPE_DESTROY_ON_END:
                             startSpriteAnimation(entities[i].globalSpriteIndex, animationMetadataIndex, 0xFD);
                             break;
 
@@ -2378,7 +2381,7 @@ void updateEntities(void) {
                     resetAnimationState(entities[i].shadowSpriteIndex);
                 }
 
-                if ((animationType == 0x4000) && checkSpriteAnimationStateChanged(entities[i].globalSpriteIndex)) {
+                if ((animationType == ANIM_TYPE_DESTROY_ON_END) && checkSpriteAnimationCycleEnded(entities[i].globalSpriteIndex)) {
                     deactivateEntity(i);                   
                 }
                 

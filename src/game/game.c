@@ -13,9 +13,10 @@
 #include "system/message.h"
 
 #include "game/animals.h"
+#include "game/cutsceneCompletionFlags.h"
 #include "game/cutscenes.h"
 #include "game/evaluation.h"
-#include "game/fieldObjects.h"
+#include "game/groundObjects.h"
 #include "game/game.h"
 #include "game/gameAudio.h"
 #include "game/gameStatus.h"
@@ -203,7 +204,7 @@ u8 D_80113C40[] = {
 static const u8 houseConstructionDays[6];
 static const u16 lifeEventHouseConstructionBits[6];
 static const u8 animalLocationsHouseConstruction[6];
-static const u16 mailTextIndices[79];
+static const u16 mailTextIndices[80];
 
 static const s16 houseExtensionPrices[6];     
 static const s16 houseExtensionLumberCosts[6];
@@ -961,8 +962,7 @@ void showDialogueTextBox(u8 dialogueMenuIndex) {
 
 void setMapAudioAndLighting(void) {
     
-    // ?
-    if (gCutsceneCompletionFlags < 0) {
+    if (gCutsceneCompletionFlags & CUTSCENE_COMPLETION_OWN_AUDIO_LIGHTING) {
         setMainLoopCallbackFunctionIndex(MAIN_GAME);
     } else {
         
@@ -1042,7 +1042,7 @@ void setLevelLighting(s16 rate, u16 callbackFunctionIndex) {
     
     if (callbackFunctionIndex) {
         setMainLoopCallbackFunctionIndex(LEVEL_LOAD);
-        togglePauseEntities();
+        unpauseEntities();
         resumeCutsceneExecutors();
     }
     
@@ -1130,7 +1130,7 @@ void setOverlayScreenCallbackWithDelay(void) {
 void handleRotationCallback(void) {
 
     if (!(mapControllers[MAIN_MAP_INDEX].flags & (MAP_CONTROLLER_ROTATING_COUNTERCLOCKWISE | MAP_CONTROLLER_ROTATING_CLOCKWISE))) {
-        togglePauseEntities();
+        unpauseEntities();
         resumeCutsceneExecutors();
         setEntityMapSpaceIndependent(ENTITY_PLAYER, TRUE);
         setMainLoopCallbackFunctionIndex(MAIN_GAME);
@@ -1152,14 +1152,14 @@ void handleDialogueCallback(void) {
         }
          
         setOverlayIconSprite(0, 0x78, &_dialogueButtonIconsTextureSegmentRomStart, &_dialogueButtonIconsTextureSegmentRomEnd, &_dialogueButtonIconsAssetsIndexSegmentRomStart, &_dialogueButtonIconsAssetsIndexSegmentRomEnd, (u8*)DIALOGUE_ICON_TEXTURE_BUFFER, (u16*)DIALOGUE_ICON_PALETTE_BUFFER, (AnimationFrameMetadata*)DIALOGUE_ICON_ANIMATION_FRAME_METADATA_BUFFER, (u32*)DIALOGUE_ICON_TEXTURE_TO_PALETTE_LOOKUP_BUFFER, 0, 4, 0xFE, 106.0f, -15.0f, 0.0f);
-        setOverlayIconSprite(1, 0x78, &_dialogueButtonIconsTextureSegmentRomStart, &_dialogueButtonIconsTextureSegmentRomEnd, &_dialogueButtonIconsAssetsIndexSegmentRomStart, &_dialogueButtonIconsAssetsIndexSegmentRomEnd, (u8*)DIALOGUE_ICON_TEXTURE_BUFFER, (u16*)DIALOGUE_ICON_PALETTE_BUFFER, (AnimationFrameMetadata*)DIALOGUE_ICON_ANIMATION_FRAME_METADATA_BUFFER, (u32*)DIALOGUE_ICON_TEXTURE_TO_PALETTE_LOOKUP_BUFFER, 0, 0xD, 0xFE, 106.0f, -15.0f, 0.0f);
+        setOverlayIconSprite(1, 0x78, &_dialogueButtonIconsTextureSegmentRomStart, &_dialogueButtonIconsTextureSegmentRomEnd, &_dialogueButtonIconsAssetsIndexSegmentRomStart, &_dialogueButtonIconsAssetsIndexSegmentRomEnd, (u8*)DIALOGUE_ICON_TEXTURE_BUFFER, (u16*)DIALOGUE_ICON_PALETTE_BUFFER, (AnimationFrameMetadata*)DIALOGUE_ICON_ANIMATION_FRAME_METADATA_BUFFER, (u32*)DIALOGUE_ICON_TEXTURE_TO_PALETTE_LOOKUP_BUFFER, 0, 13, 0xFE, 106.0f, -15.0f, 0.0f);
        
         // update stuff after closing dialogue 
         func_8005CDCC();
         
         setMainLoopCallbackFunctionIndex(MAIN_GAME);
         
-        togglePauseEntities();
+        unpauseEntities();
         resumeCutsceneExecutors();
         setEntityMapSpaceIndependent(ENTITY_PLAYER, TRUE);
 
@@ -1225,7 +1225,7 @@ void messageBoxCallback(void) {
 
         setMainLoopCallbackFunctionIndex(MAIN_GAME);
 
-        togglePauseEntities();
+        unpauseEntities();
         resumeCutsceneExecutors();
         setEntityMapSpaceIndependent(ENTITY_PLAYER, TRUE);
 
@@ -1242,7 +1242,7 @@ void endCutsceneCallback(void) {
     if (D_801FB686 == 0) {
 
         setMainLoopCallbackFunctionIndex(MAIN_GAME);
-        togglePauseEntities();
+        unpauseEntities();
         // cutscene executor flags
         resumeCutsceneExecutors();
         setEntityMapSpaceIndependent(ENTITY_PLAYER, TRUE);
@@ -1501,7 +1501,7 @@ void dialogueMenuCallback() {
 
     if (dialogues[0].sessionManager.flags & 4) {
         
-        togglePauseEntities();
+        unpauseEntities();
         resumeCutsceneExecutors();
         setEntityMapSpaceIndependent(ENTITY_PLAYER, TRUE);
 
@@ -1767,7 +1767,7 @@ void dialogueMenuCallback() {
                         gPlayer.heldItem = 0;
 
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
 
@@ -1795,7 +1795,7 @@ void dialogueMenuCallback() {
                     gPlayer.heldItem = 0;
 
                 } else {
-                    setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                    setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                     setMainLoopCallbackFunctionIndex(MAIN_GAME);
                 }
 
@@ -1829,7 +1829,7 @@ void dialogueMenuCallback() {
                         gPlayer.heldItem = 0;
                         
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
                     
@@ -1857,7 +1857,7 @@ void dialogueMenuCallback() {
                     gPlayer.heldItem = 0;
                     
                 } else {
-                    setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                    setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                     setMainLoopCallbackFunctionIndex(MAIN_GAME);
                 }
 
@@ -1892,7 +1892,7 @@ void dialogueMenuCallback() {
                         gPlayer.heldItem = 0;
 
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
                     
@@ -1920,7 +1920,7 @@ void dialogueMenuCallback() {
                     gPlayer.heldItem = 0;
 
                 } else {
-                    setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                    setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                     setMainLoopCallbackFunctionIndex(MAIN_GAME);
                 }
 
@@ -1954,7 +1954,7 @@ void dialogueMenuCallback() {
                             gPlayer.heldItem = 0;
 
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
 
@@ -1982,7 +1982,7 @@ void dialogueMenuCallback() {
                         gPlayer.heldItem = 0;
 
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
                 
@@ -2019,7 +2019,7 @@ void dialogueMenuCallback() {
                         gPlayer.heldItem = 0;
 
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
                 
@@ -2050,7 +2050,7 @@ void dialogueMenuCallback() {
                         gPlayer.heldItem = 0;
 
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
         
@@ -2087,7 +2087,7 @@ void dialogueMenuCallback() {
                         gPlayer.heldItem = 0;
 
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
                     
@@ -2118,7 +2118,7 @@ void dialogueMenuCallback() {
                     gPlayer.heldItem = 0;
                 
                 } else {
-                    setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                    setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                     setMainLoopCallbackFunctionIndex(MAIN_GAME);
                 }
 
@@ -2155,7 +2155,7 @@ void dialogueMenuCallback() {
                         gPlayer.heldItem = 0;
 
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
 
@@ -2186,7 +2186,7 @@ void dialogueMenuCallback() {
                     gPlayer.heldItem = 0;
 
                 } else {
-                    setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                    setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                     setMainLoopCallbackFunctionIndex(MAIN_GAME);
                 }
 
@@ -2223,7 +2223,7 @@ void dialogueMenuCallback() {
                         gPlayer.heldItem = 0;
 
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
 
@@ -2254,7 +2254,7 @@ void dialogueMenuCallback() {
                     gPlayer.heldItem = 0;
 
                 } else {
-                    setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                    setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                     setMainLoopCallbackFunctionIndex(MAIN_GAME);
                 }
 
@@ -2291,7 +2291,7 @@ void dialogueMenuCallback() {
                         gPlayer.heldItem = 0;
                     
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
 
@@ -2324,7 +2324,7 @@ void dialogueMenuCallback() {
                         gPlayer.heldItem = 0;
 
                 } else {
-                    setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                    setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                     setMainLoopCallbackFunctionIndex(MAIN_GAME);
                 }
 
@@ -2361,7 +2361,7 @@ void dialogueMenuCallback() {
                             gPlayer.heldItem = 0;
 
                     } else {
-                        setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                        setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                         setMainLoopCallbackFunctionIndex(MAIN_GAME);
                     }
 
@@ -2392,7 +2392,7 @@ void dialogueMenuCallback() {
                     gPlayer.heldItem = 0;
                     
                 } else {
-                    setPlayerAction(DIALOGUE_SELECTING, ANIM_DIALOGUE_SELECTING);
+                    setPlayerAction(DIALOGUE_SELECTING, ANIM_READ_LIBRARY_BOOK);
                     setMainLoopCallbackFunctionIndex(MAIN_GAME);
                 }
                 
@@ -2414,7 +2414,7 @@ void dialogueMenuCallback() {
                         break;
                     
                     case 1:                      
-                        launchIntroCutscene_2(FUNERAL, SQUARE_SPAWN_POINT_1, 1);
+                        launchIntroCutscene_2(CUTSCENE_FUNERAL, SQUARE_SPAWN_POINT_1, 1);
                         break;
 
                 }
@@ -2458,9 +2458,9 @@ void endOfFestivalDayCallback1(void) {
             case 405 ... 409:
                 initializeMessageBox(MAIN_MESSAGE_BOX_INDEX, FESTIVALS_TEXT_INDEX, 77, 0);
                 break;
-            case SEA_FESTIVAL:
-            case EGG_FESTIVAL:
-            case NEW_YEAR_FESTIVAL:
+            case CUTSCENE_SEA_FESTIVAL:
+            case CUTSCENE_EGG_FESTIVAL:
+            case CUTSCENE_NEW_YEAR_FESTIVAL:
                 initializeMessageBox(MAIN_MESSAGE_BOX_INDEX, FESTIVALS_TEXT_INDEX, 74, 0);
                 break;
             case 416:
@@ -2791,21 +2791,21 @@ u8 calculateAnimalDirectionToPlayer(f32 animalX, f32 animalZ, f32 playerX, f32 p
         if (animalZ <= playerZ) {
             
             if (deltaX <= deltaZ) {
-                direction = (deltaZ / 2) < deltaX ? SOUTH : SOUTHWEST;
+                direction = (deltaZ / 2) < deltaX ? DIRECTION_SE : DIRECTION_S;
             } else {
-                direction = (deltaX / 2) < deltaZ ? SOUTH : SOUTHEAST;
+                direction = (deltaX / 2) < deltaZ ? DIRECTION_SE : DIRECTION_E;
             }
             
         } else if (deltaX <= deltaZ) {
 
-            direction = deltaX > (deltaZ / 2) ? EAST : NORTHEAST;
+            direction = deltaX > (deltaZ / 2) ? DIRECTION_NE : DIRECTION_N;
 
         } else {
 
             if (deltaX / 2 >= deltaZ) {
-                direction = SOUTHEAST;
+                direction = DIRECTION_E;
             } else {
-                direction = EAST;
+                direction = DIRECTION_NE;
             }
 
         }
@@ -2819,22 +2819,22 @@ u8 calculateAnimalDirectionToPlayer(f32 animalX, f32 animalZ, f32 playerX, f32 p
         } else {
 
             if ((deltaX / 2) >= deltaZ) {
-                direction = NORTHWEST;
+                direction = DIRECTION_W;
             } else {
-                direction = WEST;
+                direction = DIRECTION_SW;
             }
         }
         
     } else if (deltaX <= deltaZ) {
         
         if ((deltaZ / 2) >= deltaX) {
-            direction = NORTHEAST;
+            direction = DIRECTION_N;
         } else {
-            direction = NORTH;
+            direction = DIRECTION_NW;
         }
         
     } else {
-        direction = (deltaZ > (deltaX / 2)) ? NORTH : NORTHWEST;
+        direction = (deltaZ > (deltaX / 2)) ? DIRECTION_NW : DIRECTION_W;
     }
     
     return direction;
@@ -2897,6 +2897,56 @@ bool checkBacheloretteReadyForMarriage(void) {
 
 //INCLUDE_ASM("asm/nonmatchings/game/game", setWifeNameString);
 
+#ifdef _JP
+void setWifeNameString(u8 wife) {
+
+    switch (wife) {
+        case MARIA:
+            gWifeName[0] = 0x6E;
+            gWifeName[1] = 0x77;
+            gWifeName[2] = 0xE1;
+            gWifeName[3] = 0xFF;
+            gWifeName[4] = 0xFF;
+            gWifeName[5] = 0xFF;
+            break;
+        case POPURI:
+            gWifeName[0] = 0x96;
+            gWifeName[1] = 0x94;
+            gWifeName[2] = 0x77;
+            gWifeName[3] = 0xFF;
+            gWifeName[4] = 0xFF;
+            gWifeName[5] = 0xFF;
+            break;
+        case ELLI:
+            gWifeName[0] = 0x53;
+            gWifeName[1] = 0x77;
+            gWifeName[2] = 0x9D;
+            gWifeName[3] = 0xFF;
+            gWifeName[4] = 0xFF;
+            gWifeName[5] = 0xFF;
+            break;
+        case ANN:
+            gWifeName[0] = 0x76;
+            gWifeName[1] = 0x7D;
+            gWifeName[2] = 0xFF;
+            gWifeName[3] = 0xFF;
+            gWifeName[4] = 0xFF;
+            gWifeName[5] = 0xFF;
+            break;
+        case KAREN:
+            gWifeName[0] = 0x55;
+            gWifeName[1] = 0x79;
+            gWifeName[2] = 0x7D;
+            gWifeName[3] = 0xFF;
+            gWifeName[4] = 0xFF;
+            gWifeName[5] = 0xFF;
+            break;
+        default:
+            return;
+            
+    }
+}
+#else
 void setWifeNameString(u8 wife) {
 
     switch (wife) {
@@ -2945,9 +2995,59 @@ void setWifeNameString(u8 wife) {
             
     }
 }
+#endif
 
 //INCLUDE_ASM("asm/nonmatchings/game/game", setDefaultBabyName);
 
+#ifdef _JP
+void setDefaultBabyName(u8 wife) {
+    
+    switch (wife) {
+        case MARIA:
+            gBabyName[0] = 0x77;
+            gBabyName[1] = 0xE1;
+            gBabyName[2] = 0x73;
+            gBabyName[3] = 0xFF;
+            gBabyName[4] = 0xFF;
+            gBabyName[5] = 0xFF;
+            break;
+        case POPURI:
+            gBabyName[0] = 0x92;
+            gBabyName[1] = 0x5D;
+            gBabyName[2] = 0x77;
+            gBabyName[3] = 0xFF;
+            gBabyName[4] = 0xFF;
+            gBabyName[5] = 0xFF;
+            break;
+        case ELLI:
+            gBabyName[0] = 0x59;
+            gBabyName[1] = 0x59;
+            gBabyName[2] = 0x9B;
+            gBabyName[3] = 0x63;
+            gBabyName[4] = 0xFF;
+            gBabyName[5] = 0xFF;
+            break;
+        case ANN:
+            gBabyName[0] = 0x6F;
+            gBabyName[1] = 0x7D;
+            gBabyName[2] = 0x63;
+            gBabyName[3] = 0xFF;
+            gBabyName[4] = 0xFF;
+            gBabyName[5] = 0xFF; 
+            break;
+        case KAREN:
+            gBabyName[0] = 0x58;
+            gBabyName[1] = 0x77;
+            gBabyName[2] = 0xE1;
+            gBabyName[3] = 0xFF;
+            gBabyName[4] = 0xFF;
+            gBabyName[5] = 0xFF;
+            break;
+        default:
+            break;
+    }
+}
+#else
 void setDefaultBabyName(u8 wife) {
     
     switch (wife) {
@@ -2995,9 +3095,67 @@ void setDefaultBabyName(u8 wife) {
             break;
     }
 }
+#endif
 
 //INCLUDE_ASM("asm/nonmatchings/game/game", setHarvestKingName);
  
+#ifdef _JP
+void setHarvestKingName(u8 harvestKing) {
+
+    switch (harvestKing) {
+        case PLAYER:
+            gHarvestKingName[0] = gPlayer.name[0];
+            gHarvestKingName[1] = gPlayer.name[1];
+            gHarvestKingName[2] = gPlayer.name[2];
+            gHarvestKingName[3] = gPlayer.name[3];
+            gHarvestKingName[4] = gPlayer.name[4];
+            gHarvestKingName[5] = gPlayer.name[5];
+            break;
+        case 1:
+            gHarvestKingName[0] = 0x69;
+            gHarvestKingName[1] = 0x77;
+            gHarvestKingName[2] = 0x5C;
+            gHarvestKingName[3] = 0xFF;
+            gHarvestKingName[4] = 0xFF;
+            gHarvestKingName[5] = 0xFF;
+            break;
+        default:
+            break;
+        case 2:
+            gHarvestKingName[0] = 0x80;
+            gHarvestKingName[1] = 0x79;
+            gHarvestKingName[2] = 0x51;
+            gHarvestKingName[3] = 0xFF;
+            gHarvestKingName[4] = 0xFF;
+            gHarvestKingName[5] = 0xFF;
+            break;
+        case 3:
+            gHarvestKingName[0] = 0x84;
+            gHarvestKingName[1] = 0x9F;
+            gHarvestKingName[2] = 0x6B;
+            gHarvestKingName[3] = 0xFF;
+            gHarvestKingName[4] = 0xFF;
+            gHarvestKingName[5] = 0xFF;
+            break;
+        case 4:
+            gHarvestKingName[0] = 0x57;
+            gHarvestKingName[1] = 0x77;
+            gHarvestKingName[2] = 0x6B;
+            gHarvestKingName[3] = 0xFF;
+            gHarvestKingName[4] = 0xFF;
+            gHarvestKingName[5] = 0xFF;
+            break;
+        case 5:
+            gHarvestKingName[0] = 0x55;
+            gHarvestKingName[1] = 0x51;
+            gHarvestKingName[2] = 0xFF;
+            gHarvestKingName[3] = 0xFF;
+            gHarvestKingName[4] = 0xFF;
+            gHarvestKingName[5] = 0xFF;
+            break;
+        }
+}
+#else
 void setHarvestKingName(u8 harvestKing) {
 
     switch (harvestKing) {
@@ -3053,9 +3211,50 @@ void setHarvestKingName(u8 harvestKing) {
             break;
         }
 }
+#endif
 
-//INCLUDE_ASM("asm/nonmatchings/game/game", func_80061690);
+// INCLUDE_ASM("asm/nonmatchings/game/game", func_80061690);
 
+#ifdef _JP
+void func_80061690(u8 arg0) {
+
+    switch (arg0) {
+        case 0:              
+            D_801886D4[0] = 0x24;
+            D_801886D4[1] = 2;
+            D_801886D4[2] = 0xB;
+            D_801886D4[3] = 0x49;
+            D_801886D4[4] = 2;
+            D_801886D4[5] = 0xFF;
+            break;
+        case 1:
+            D_801886D4[0] = 0xD6;
+            D_801886D4[1] = 0x13;
+            D_801886D4[2] = 2;
+            D_801886D4[3] = 0xB;
+            D_801886D4[4] = 0x49;
+            D_801886D4[5] = 2;
+            break;
+        case 2:
+            D_801886D4[0] = 0xD7;
+            D_801886D4[1] = 0x13;
+            D_801886D4[2] = 2;
+            D_801886D4[3] = 0xB;
+            D_801886D4[4] = 0x49;
+            D_801886D4[5] = 0x2;
+            break;
+        default:
+            D_801886D4[0] = 0xF6;
+            D_801886D4[1] = 0xF6;
+            D_801886D4[2] = 0xF6;
+            D_801886D4[3] = 0xF6;
+            D_801886D4[4] = 0xF6;
+            D_801886D4[5] = 0xF6;
+            break;
+    }
+    
+}
+#else
 void func_80061690(u8 arg0) {
     D_801886D4[0] = 0xF6;
     D_801886D4[1] = 0xF6;
@@ -3064,6 +3263,7 @@ void func_80061690(u8 arg0) {
     D_801886D4[4] = 0xF6;
     D_801886D4[5] = 0xF6;
 }
+#endif
 
 //INCLUDE_ASM("asm/nonmatchings/game/game", handlePurchaseHouseExtension);
 
@@ -3743,7 +3943,7 @@ u16 getTextIndexFromLetterIndex(u8 index) {
 
     u16 arr[80];
     
-    memcpy(arr, mailTextIndices, 0xA0);
+    memcpy(arr, mailTextIndices, 160);
 
     return arr[index];
 
@@ -3775,8 +3975,7 @@ static const u8 animalLocationsHouseConstruction[6] = { FARM, FARM, HOUSE, FARM,
 
 // INCLUDE_RODATA("asm/nonmatchings/game/game", mailTextIndices);
 
-// text indices for letters
-static const u16 mailTextIndices[79] = { 
+static const u16 mailTextIndices[80] = { 
      0, 1, 2, 3, 4, 5, 
      6, 7, 8, 9, 10, 11, 
      12, 13, 14, 15, 16, 
@@ -3794,3 +3993,7 @@ static const u16 mailTextIndices[79] = {
      53, 54, 55, 56, 57,
      0, 0, 0, 0
 };
+
+#ifdef _JP
+#include "game/gameStatus.c"
+#endif

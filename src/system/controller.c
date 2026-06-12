@@ -69,8 +69,12 @@ void controllerInit(void) {
     buttonRepeatRate = 4;
     buttonRepeatModeTriggerDelayFrames = 16;
 
+#ifdef _JP
+    nuContInit();
+#else
     contPattern = nuContInit();
-    
+#endif
+
 }
 
 //INCLUDE_ASM("asm/nonmatchings/system/controller", readControllerData);
@@ -86,7 +90,7 @@ void readControllerData(void) {
         
         if (!nuContStatus[i].errno) {
             
-            if ((frameCount % mainLoopUpdateRate) == 0) {
+            if ((vblankCounter % mainLoopUpdateInterval) == 0) {
                 
                 controllers[i].analogStick.rawX = contData[i].stick_x;
                 controllers[i].analogStick.rawY = contData[i].stick_y;
@@ -231,21 +235,21 @@ void calculateAnalogStickDirection(u8 controllerIndex) {
             
             if ((analogStick.direction / 2) < controllers[controllerIndex].analogStick.magnitude) {
                 if ((analogStick.rawX << 0x18) < 0) {
-                    controllers[controllerIndex].analogStick.direction = NORTHWEST;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_W;
                 } else {
-                    controllers[controllerIndex].analogStick.direction = SOUTHEAST;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_E;
                 }
             } else if ((analogStick.rawY << 0x18) < 0) {
                 if ((analogStick.rawX << 0x18) < 0) {
-                    controllers[controllerIndex].analogStick.direction = WEST;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_SW;
                 } else {
-                    controllers[controllerIndex].analogStick.direction = SOUTH;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_SE;
                 }
             } else {
                 if ((analogStick.rawX << 0x18) < 0) {
-                    controllers[controllerIndex].analogStick.direction = NORTH;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_NW;
                 } else {
-                    controllers[controllerIndex].analogStick.direction = EAST;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_NE;
                 }
     
             }
@@ -258,21 +262,21 @@ void calculateAnalogStickDirection(u8 controllerIndex) {
             
             if ((analogStick.magnitude / 2) < controllers[controllerIndex].analogStick.magnitude) {
                 if ((analogStick.rawY << 24) < 0) {
-                    controllers[controllerIndex].analogStick.direction = SOUTHWEST;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_S;
                 } else {
-                    controllers[controllerIndex].analogStick.direction = NORTHEAST;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_N;
                 } 
             } else if ((analogStick.rawX << 24) < 0) {
                 if ((analogStick.rawY << 24) < 0) {
-                    controllers[controllerIndex].analogStick.direction = WEST;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_SW;
                 } else {
-                    controllers[controllerIndex].analogStick.direction = NORTH;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_NW;
                 }
             } else {
                 if ((analogStick.rawY << 24) < 0) { 
-                    controllers[controllerIndex].analogStick.direction = SOUTH;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_SE;
                 } else {
-                    controllers[controllerIndex].analogStick.direction = EAST;
+                    controllers[controllerIndex].analogStick.direction = DIRECTION_NE;
                 }
             }
     
@@ -282,7 +286,7 @@ void calculateAnalogStickDirection(u8 controllerIndex) {
      }
     
     if (controllers[controllerIndex].analogStick.magnitude >= MAX_DIRECTIONS) {
-        controllers[controllerIndex].analogStick.magnitude = SOUTHEAST;
+        controllers[controllerIndex].analogStick.magnitude = DIRECTION_E;
     }
     
     controllers[controllerIndex].button |= (0x10000 << (controllers[controllerIndex].analogStick.direction)); 
@@ -351,7 +355,7 @@ u32 func_8004D904(u8 contIndex, u8 *companyCode, u8 *gameCode) {
 
 //INCLUDE_ASM("asm/nonmatchings/system/controller", func_8004D954);
 
-u32 func_8004D954(u8 contIndex, u8* noteName, u8 *extName) {
+u8 func_8004D954(u8 contIndex, u8* noteName, u8 *extName) {
     nuContPakFileOpenJis(&controllers[contIndex].pak, noteName, extName, NU_CONT_PAK_MODE_NOCREATE, 0);
     return !controllers[contIndex].pak.error;
 }

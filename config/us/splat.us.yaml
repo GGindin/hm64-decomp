@@ -106,7 +106,7 @@ segments:
       - [ 0xAAC50, c, game/items]
       - [ 0xB3020, c, game/time]
       - [ 0xB3940, c, game/tv]
-      - [ 0xB4A00, c, game/fieldObjects]
+      - [ 0xB4A00, c, game/groundObjects]
       - [ 0xB7760, c, game/weather]
       - [ 0xB7B50, c, game/shop]
       - [ 0xB97C0, c, game/title]
@@ -350,8 +350,6 @@ segments:
       - [ 0xEBC20, textbin, ../lib/ucode/rspboot]
       - [ 0xEBCF0, textbin, ../lib/ucode/n_aspMain]
       - [ 0xEC950, textbin, ../lib/ucode/gspF3DEX2.fifo]
-      - [ 0xECAB0, .data, system/unknownData]
-      - [ 0xECAC0, .data, system/unknownData2]
       - [ 0xEDD00, .data, system/staticGfx]
       - [ 0xEDE80, .data, system/paddingData]
       - [ 0xEE110, .data, system/map]
@@ -368,7 +366,7 @@ segments:
       - [ 0xF16F0, .data, game/gameAudio]
       - [ 0xF2080, .data, game/overlayScreens]
       - [ 0xF2580, .data, game/items]
-      - [ 0xF3B00, .data, game/fieldObjects]
+      - [ 0xF3B00, .data, game/groundObjects]
       - [ 0xF3F50, .data, game/weather]
       - [ 0xF3F70, .data, game/shop]
       - [ 0xF4B40, .data, game/gameFile]
@@ -545,7 +543,7 @@ segments:
       - [ 0xFD090, .rodata, game/overlayScreens]
       - [ 0xFD6B0, .rodata, game/items]
       - [ 0xFDB60, .rodata, game/tv]
-      - [ 0xFDC58, .rodata, game/fieldObjects]
+      - [ 0xFDC58, .rodata, game/groundObjects]
       - [ 0xFE838, .rodata, game/weather]
       - [ 0xFE860, .rodata, game/shop]
       - [ 0xFEA58, .rodata, game/title]
@@ -778,190 +776,163 @@ segments:
       - [ 0xFF5C0, c, buffers/frameBuffer ]
       - { start: 0xFF5C0, type: .bss, vram: 0x8038F800, name: buffers/frameBuffer }
 
-  # farm cutscenes: shipper, animal purchase
   - name: farmBusiness
     type: bin
     dir: cutscenes
     extract: false
     start: 0xFF5C0
 
-  # farm visits
   - name: farmVisits
     type: bin
     dir: cutscenes
     extract: false
     start: 0x100180
 
-  # marriage, births
   - name: houseCutscenes
     type: bin
     dir: cutscenes
     extract: false
     start: 0x109920
     
-  # cliff leaving, shady salesman, ann sprained ankle
   - name: roadCutscenes
     type: bin
     dir: cutscenes
     extract: false
     start: 0x10EA80
 
-  # girl cutscenes
   - name: mountainCutscenes
     type: bin
     dir: cutscenes
     extract: false
     start: 0x10F980
 
-  # ann cutscenes
   - name: ranchCutscenes
     type: bin
     dir: cutscenes
     extract: false
     start: 0x115310
 
-  # karen cutscenes
   - name: vineyardCutscenes
     type: bin
     dir: cutscenes
     extract: false
     start: 0x1175F0
 
-  # wedding, rival events, new year's, starry night festval
-  - name: cutsceneBank8
+  - name: village1Cutscenes
     type: bin
     dir: cutscenes
     extract: false
     start: 0x118D70
     vram: 0x802F5000
   
-  # maria cutscenes
   - name: village2Cutscenes
     type: bin
     dir: cutscenes
     extract: false
     start: 0x120910
 
-  # karen cutscenes 2 (beach fireworks, heart events)
   - name: beachCutscenes
     type: bin
     dir: cutscenes
     extract: false
     start: 0x123CE0
 
-  # sowing festival
   - name: sowingFestival
     type: bin
     dir: cutscenes
     extract: false
     start: 0x125200
 
-  # horse race
   - name: horseRace
     type: bin
     dir: cutscenes
     extract: false
     start: 0x129760
 
-  # flower festival
   - name: flowerFestival
     type: bin
     dir: cutscenes
     extract: false
     start: 0x12FE90
 
-  # vegetable festival
-  - name: squareFireworks
+  - name: vegetableFestival
     type: bin
     dir: cutscenes
     extract: false
     start: 0x134510
 
-  # square fireworks
   - name: fireworksFestival
     type: bin
     dir: cutscenes
     extract: false
     start: 0x135F40
 
-  # firefly festival
   - name: fireflyFestival
     type: bin
     dir: cutscenes
     extract: false
     start: 0x136930
 
-  # sea festival
   - name: seaFestival
     type: bin
     dir: cutscenes
     extract: false
     start: 0x1385E0
 
-  # cow festival
   - name: cowFestival
     type: bin
     dir: cutscenes
     extract: false
     start: 0x139840
 
-  # harvest festival
   - name: harvestFestival
     type: bin
     dir: cutscenes
     extract: false
     start: 0x13AFC0
 
-  # egg festival
   - name: eggFestival
     type: bin
     dir: cutscenes
     extract: false
     start: 0x13D470
 
-  # dog race
   - name: dogRace
     type: bin
     dir: cutscenes
     extract: false
     start: 0x13FAC0
 
-  # spirit festival
   - name: spiritFestival
     type: bin
     dir: cutscenes
     extract: false
     start: 0x144F60
 
-  # new year festival
   - name: newYearFestival
     type: bin
     dir: cutscenes
     extract: false
     start: 0x1485B0
 
-  # intro/opening
   - name: funeralIntro
     type: bin
     dir: cutscenes
     extract: false
     start: 0x149CC0
 
-  # evaluation
   - name: evaluationEnding
     type: bin
     dir: cutscenes
     extract: false
     start: 0x14B8F0
 
-  # demo cutscenes
   - name: demos
     type: bin
     dir: cutscenes
     extract: false
     start: 0x150120
 
-  # how to play
   - name: howToPlay
     type: bin
     dir: cutscenes
@@ -3209,7 +3180,7 @@ segments:
     dir: maps/unknown
     start: 0xB64E30
 
-  - name: spriteCaveMap
+  - name: harvestSpriteCaveMap
     type: hm64map
     dir: maps/cave
     start: 0xB64E40
@@ -6089,11 +6060,13 @@ segments:
   - name: waveTablePointer
     type: bin
     dir: audio
+    extract: false
     start: 0xE93080
 
   - name: waveTableData
     dir: audio
     type: bin
+    extract: false
     start: 0xE99910
 
   # music

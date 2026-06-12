@@ -1,5 +1,5 @@
 ; ============================================
-; Bank 21 - Dog Race
+; Bank 28 - Dog Race
 ; ============================================
 ;
 ; Four cutscenes, dispatched by gCutsceneIndex at .dispatch:
@@ -8,21 +8,34 @@
 ;   1302: the race itself     -> .cs_race
 ;   1303: post-race / exit    -> .cs_post_race
 ;
-; D_801C3F78 race-state bits (inferred from bytecode usage):
-;   bit 1: player dog finished 1st    (set at .race_player_first)
-;   bit 2: race has completed         (post-race gate in every NPC dispatcher)
-;   bit 3: player dog finished 2nd    (set at .race_player_second)
-;   bit 5: player dog is in the race  (unlocks Rick betting dialogue,
-;                                      dog-entered variants for several NPCs)
-; Bits 0, 4, 6 are touched but their semantics are not verified.
+; raceStateFlags bits used here (see cutscenes.h for the canonical definitions):
+;   PLAYER_PLACED        (bit 0): set after the resolver runs in .race_player_entered_check_placement
+;                                 (only reached when PLAYER_IN_RACE was set). Cleared at .cs_race start.
+;   PLAYER_WON           (bit 1): set in .race_player_first  (1st-place dog ID == 1, i.e. player dog)
+;   RACE_FINALIZED       (bit 2): set in .race_final_cleanup (post-race NPC dialogue gate)
+;   DOG2_WON             (bit 3): set in .race_player_second when the 1st-place dog ID is 2 (NB: the
+;                                 .race_player_second label is misleading -- it tests "dog 2 won 1st",
+;                                 not "player came 2nd"). Cleared at .cs_race start. Combined with
+;                                 RIVAL_IN_RACE this means "Taro won" -- which is what the
+;                                 Kent / Stu / Potion-Shop-Dealer post-race dispatchers test.
+;   BETWEEN_RACES_SHOWN  (bit 4): set in .announcer_between_races (announcer one-shot already played)
+;   PLAYER_IN_RACE       (bit 5): set by C code when playerRaceNumber == currentRaceIndex.
+;                                 Drives .dog1_setup_player_owned,
+;   RIVAL_IN_RACE        (bit 6): set by C code when rivalEntryRaceIndex == currentRaceIndex.
+;                                 Means Taro is in this race -- drives .dog2_setup_alt_palette and the
+;                                 Kent / Stu / Potion-Shop-Dealer ".._check_taro_won" branches.
 ;
-; gRaceFinishOrder[0..5]: dogs ranked 1st..6th, as u8 placement codes 1..6.
+; gRaceFinishOrder[i] holds the dog ID (1..6) that placed (i+1)-th. The race-tick state machines
+; fill [0]/[1] as dogs cross the finish line in .race_track_finishers; .race_resolve_finish_order
+; fills [2..5] for the remaining dogs.
 ; dog1Progress..dog6Progress: per-dog race position counters used by the race tick machines.
 ; finishLine, progressCeiling: scratch for .race_track_finishers.
 
 #include "entities.h"
 #include "texts.h"
 #include "dialogues.h"
+#include "entityAnimationLabels.h"
+#include "raceStateFlags.h"
 
 #define MAIN_MAP_INDEX 0
 
@@ -93,7 +106,7 @@
 
 .setup_player:
     SETUP_ENTITY 0, ENTITY_ASSET_PLAYER, 1
-    SET_ENTITY_ANIMATIONS 0, 0, 8, 16, 24, 32, 40
+    SET_ENTITY_ANIMATIONS 0, PLAYER_ANIMATION_STANDING_DIRECTIONAL, PLAYER_ANIMATION_WALKING_DIRECTIONAL, PLAYER_ANIMATION_RUNNING_DIRECTIONAL, PLAYER_ANIMATION_HOLDING_DIRECTIONAL, PLAYER_ANIMATION_HOLDING_WALKING_DIRECTIONAL, PLAYER_ANIMATION_HOLDING_RUNNING_DIRECTIONAL
     SET_BEHAVIOR_FLAGS CUTSCENE_ASSET_BEHAVIOR_TRACK_ENTITY
     RETURN_FROM_SUBROUTINE
 
@@ -125,7 +138,7 @@
     SET_ENTITY_ANIMATIONS 1, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES -192, 0, -32
-    SET_ASSET_ROTATION SOUTHEAST
+    SET_ASSET_ROTATION 6
 
 .ticket_mayor_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .ticket_mayor_talk
@@ -146,7 +159,7 @@
     SET_ENTITY_ANIMATIONS 2, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES -192, 0, 16
-    SET_ASSET_ROTATION SOUTHEAST
+    SET_ASSET_ROTATION 6
 
 .ticket_wife_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .ticket_wife_talk
@@ -193,16 +206,24 @@
     ;   - Married: spawn the wife if she is Maria or Karen.
     ;   - Single with high Maria affection AND dog in race: spawn Maria.
     ;   - Otherwise: no extra spawn.
+#ifdef _JP
+    BRANCH_U8_VAR_WITHIN_RANGE 0, 0, gWife, .spawn_maria_crowd
+#else
     BRANCH_ON_SPECIAL_BIT MARRIED, lifeEventBits[0], .check_wife_is_maria
+#endif
     BRANCH_U8_VAR_WITHIN_RANGE 0, 79, npcAffection[MARIA], .check_married_karen
-    BRANCH_ON_SPECIAL_BIT 5, D_801C3F78, .spawn_maria_crowd
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_IN_RACE, raceStateFlags, .spawn_maria_crowd
     EXECUTE_SUBROUTINE .check_married_karen
 
 .spawn_maria_crowd:
     SPAWN_EXECUTOR 14, .maria_setup
 
 .check_married_karen:
+#ifdef _JP
+    BRANCH_U8_VAR_WITHIN_RANGE 4, 4, gWife, .spawn_karen_crowd
+#else
     BRANCH_ON_SPECIAL_BIT 0, lifeEventBits[0], .check_wife_is_karen
+#endif
 
 .fade_in_start_announcer:
     SET_WAIT_FRAMES 1
@@ -214,22 +235,30 @@
 
 .spawn_karen_crowd:
     SPAWN_EXECUTOR 15, .karen_setup
+#ifdef _JP
+    RETURN_FROM_SUBROUTINE
+#else
     EXECUTE_SUBROUTINE .fade_in_start_announcer
+#endif
 
+#ifndef _JP
 .check_wife_is_maria:
     BRANCH_U8_VAR_WITHIN_RANGE 0, 0, gWife, .spawn_maria_crowd
     RETURN_FROM_SUBROUTINE
+#endif
 
+#ifndef _JP
 .check_wife_is_karen:
     BRANCH_U8_VAR_WITHIN_RANGE 4, 4, gWife, .spawn_karen_crowd
     RETURN_FROM_SUBROUTINE
+#endif
 
 ; ------------------------------------------------------------
 ; Time announcer (executor 41 during cutscenes 1300/1301)
 ; ------------------------------------------------------------
 ; Polls gHour each frame. At 10h/13h/16h the next race begins (texts
 ; 47/48/49). Between races, text 53 plays once (gated by bit 4 of
-; D_801C3F78). At 18h the festival ends and all executors shut down.
+; raceStateFlags). At 18h the festival ends and all executors shut down.
 
 .announcer_tick:
     SET_WAIT_FRAMES 1
@@ -240,7 +269,7 @@
     EXECUTE_SUBROUTINE .announcer_tick
 
 .announcer_between_races:
-    BRANCH_ON_SPECIAL_BIT 4, D_801C3F78, .announcer_tick
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_BETWEEN_RACES_SHOWN, raceStateFlags, .announcer_tick
     PAUSE_ENTITIES
     SET_MESSAGE_INTERPOLATION -4, 0, 0
     SET_MESSAGE_BOX_ASSETS 0, 1, 0, 0
@@ -251,7 +280,7 @@
     SET_MESSAGE_BOX_ASSETS 0, 0, 0, 0
     SET_MESSAGE_BOX_VIEW_POSITION 0, 24, -64, 352
     TOGGLE_PAUSE_ENTITIES
-    SET_SPECIAL_BIT 4, D_801C3F78
+    SET_SPECIAL_BIT RACE_STATE_BIT_BETWEEN_RACES_SHOWN, raceStateFlags
     EXECUTE_SUBROUTINE .announcer_tick
 
 .announcer_race1_start:
@@ -349,7 +378,7 @@
     SET_ENTITY_ANIMATIONS 1, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES -64, 0, 144
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .kent_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .kent_on_interact
@@ -359,8 +388,8 @@
     PAUSE_ENTITIES
     FLIP_ENTITY_DIRECTION 0
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .kent_post_race
-    BRANCH_ON_SPECIAL_BIT 5, D_801C3F78, .kent_talk_dog_entered
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .kent_post_race
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_IN_RACE, raceStateFlags, .kent_talk_dog_entered
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 5
 
 .kent_talk_done:
@@ -374,14 +403,14 @@
     EXECUTE_SUBROUTINE .kent_talk_done
 
 .kent_post_race:
-    BRANCH_ON_SPECIAL_BIT 6, D_801C3F78, .kent_check_taro_won
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RIVAL_IN_RACE, raceStateFlags, .kent_check_taro_won
 
 .kent_talk_post_race:
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 7
     EXECUTE_SUBROUTINE .kent_talk_done
 
 .kent_check_taro_won:
-    BRANCH_ON_SPECIAL_BIT 3, D_801C3F78, .kent_talk_taro_won
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_DOG2_WON, raceStateFlags, .kent_talk_taro_won
     EXECUTE_SUBROUTINE .kent_talk_post_race
 
 .kent_talk_taro_won:
@@ -397,7 +426,7 @@
     SET_ENTITY_ANIMATIONS 2, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES -96, 0, 144
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .stu_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .stu_on_interact
@@ -407,7 +436,7 @@
     PAUSE_ENTITIES
     FLIP_ENTITY_DIRECTION 0
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .stu_post_race
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .stu_post_race
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 9
 
 .stu_talk_done:
@@ -417,14 +446,14 @@
     EXECUTE_SUBROUTINE .stu_wait
 
 .stu_post_race:
-    BRANCH_ON_SPECIAL_BIT 6, D_801C3F78, .stu_check_taro_won
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RIVAL_IN_RACE, raceStateFlags, .stu_check_taro_won
 
 .stu_talk_post_race:
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 10
     EXECUTE_SUBROUTINE .stu_talk_done
 
 .stu_check_taro_won:
-    BRANCH_ON_SPECIAL_BIT 3, D_801C3F78, .stu_talk_taro_won
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_DOG2_WON, raceStateFlags, .stu_talk_taro_won
     EXECUTE_SUBROUTINE .stu_talk_post_race
 
 .stu_talk_taro_won:
@@ -440,7 +469,7 @@
     SET_ENTITY_ANIMATIONS 3, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES -16, 0, 144
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .potion_dealer_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .potion_dealer_on_interact
@@ -450,7 +479,7 @@
     PAUSE_ENTITIES
     FLIP_ENTITY_DIRECTION 0
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .potion_dealer_post_race
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .potion_dealer_post_race
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 2
 
 .potion_dealer_talk_done:
@@ -460,14 +489,14 @@
     EXECUTE_SUBROUTINE .potion_dealer_wait
 
 .potion_dealer_post_race:
-    BRANCH_ON_SPECIAL_BIT 6, D_801C3F78, .potion_dealer_check_taro_won
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RIVAL_IN_RACE, raceStateFlags, .potion_dealer_check_taro_won
 
 .potion_dealer_talk_lost:
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 3
     EXECUTE_SUBROUTINE .potion_dealer_talk_done
 
 .potion_dealer_check_taro_won:
-    BRANCH_ON_SPECIAL_BIT 3, D_801C3F78, .potion_dealer_talk_taro_won
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_DOG2_WON, raceStateFlags, .potion_dealer_talk_taro_won
     EXECUTE_SUBROUTINE .potion_dealer_talk_lost
 
 .potion_dealer_talk_taro_won:
@@ -483,7 +512,7 @@
     SET_ENTITY_ANIMATIONS 4, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES 160, 0, 24
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .rick_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .rick_on_interact
@@ -493,8 +522,8 @@
     PAUSE_ENTITIES
     FLIP_ENTITY_DIRECTION 0
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .rick_talk_lost_bet
-    BRANCH_ON_SPECIAL_BIT 5, D_801C3F78, .rick_betting_dialogue
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .rick_talk_lost_bet
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_IN_RACE, raceStateFlags, .rick_betting_dialogue
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 55
 
 .rick_talk_done:
@@ -523,7 +552,7 @@
     SET_ENTITY_ANIMATIONS 5, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES -128, 0, 48
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .popuri_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .popuri_on_interact
@@ -533,9 +562,13 @@
     PAUSE_ENTITIES
     FLIP_ENTITY_DIRECTION 0
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .popuri_talk_running_hard
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .popuri_talk_running_hard
+#ifdef _JP
+    BRANCH_U8_VAR_WITHIN_RANGE 1, 1, gWife, .popuri_wife_talk_chick_race
+#else
     BRANCH_ON_SPECIAL_BIT 0, lifeEventBits[0], .popuri_check_wife
-    BRANCH_ON_SPECIAL_BIT 5, D_801C3F78, .popuri_talk_good_luck
+#endif
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_IN_RACE, raceStateFlags, .popuri_talk_good_luck
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 16
 
 .popuri_talk_done:
@@ -544,9 +577,11 @@
     TOGGLE_PAUSE_ENTITIES
     EXECUTE_SUBROUTINE .popuri_wait
 
+#ifndef _JP
 .popuri_check_wife:
     BRANCH_U8_VAR_WITHIN_RANGE 1, 1, gWife, .popuri_wife_talk_chick_race
     RETURN_FROM_SUBROUTINE
+#endif
 
 .popuri_talk_good_luck:
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 15
@@ -571,7 +606,7 @@
     SET_ENTITY_ANIMATIONS 6, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES 64, 0, -8
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .ann_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .ann_on_interact
@@ -581,9 +616,13 @@
     PAUSE_ENTITIES
     FLIP_ENTITY_DIRECTION 0
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .ann_talk_affection
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .ann_talk_affection
+#ifdef _JP
+    BRANCH_U8_VAR_WITHIN_RANGE 3, 3, gWife, .ann_wife_talk_why_not
+#else
     BRANCH_ON_SPECIAL_BIT 0, lifeEventBits[0], .ann_check_wife
-    BRANCH_ON_SPECIAL_BIT 5, D_801C3F78, .ann_talk_pray
+#endif
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_IN_RACE, raceStateFlags, .ann_talk_pray
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 23
 
 .ann_talk_done:
@@ -592,16 +631,18 @@
     TOGGLE_PAUSE_ENTITIES
     EXECUTE_SUBROUTINE .ann_wait
 
+#ifndef _JP
 .ann_check_wife:
     BRANCH_U8_VAR_WITHIN_RANGE 3, 3, gWife, .ann_wife_talk_why_not
     RETURN_FROM_SUBROUTINE
+#endif
 
 .ann_talk_pray:
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 24
     EXECUTE_SUBROUTINE .ann_talk_done
 
 .ann_wife_talk_why_not:
-    BRANCH_ON_SPECIAL_BIT 5, D_801C3F78, .ann_wife_talk_no_match
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_IN_RACE, raceStateFlags, .ann_wife_talk_no_match
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 27
     EXECUTE_SUBROUTINE .ann_talk_done
 
@@ -619,7 +660,7 @@
     SET_ENTITY_ANIMATIONS 7, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES -64, 0, -172
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .jeff_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .jeff_on_interact
@@ -645,7 +686,7 @@
     SET_ENTITY_ANIMATIONS 8, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES 0, 0, -144
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .elli_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .elli_on_interact
@@ -655,9 +696,13 @@
     PAUSE_ENTITIES
     FLIP_ENTITY_DIRECTION 0
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .elli_talk_ticket
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .elli_talk_ticket
+#ifdef _JP
+    BRANCH_U8_VAR_WITHIN_RANGE 2, 2, gWife, .elli_wife_talk_cheering
+#else
     BRANCH_ON_SPECIAL_BIT 0, lifeEventBits[0], .elli_check_wife
-    BRANCH_ON_SPECIAL_BIT 5, D_801C3F78, .elli_talk_hope_wins
+#endif
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_IN_RACE, raceStateFlags, .elli_talk_hope_wins
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 19
 
 .elli_talk_done:
@@ -666,9 +711,11 @@
     TOGGLE_PAUSE_ENTITIES
     EXECUTE_SUBROUTINE .elli_wait
 
+#ifndef _JP
 .elli_check_wife:
     BRANCH_U8_VAR_WITHIN_RANGE 2, 2, gWife, .elli_wife_talk_cheering
     RETURN_FROM_SUBROUTINE
+#endif
 
 .elli_talk_hope_wins:
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 20
@@ -690,7 +737,7 @@
     SET_ENTITY_ANIMATIONS 9, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES 64, 0, 144
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .festival_girl1_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .festival_girl1_on_interact
@@ -699,7 +746,7 @@
 .festival_girl1_on_interact:
     PAUSE_ENTITIES
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .festival_girl1_talk_win_next
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .festival_girl1_talk_win_next
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 35
 
 .festival_girl1_talk_done:
@@ -720,7 +767,7 @@
     SET_ENTITY_ANIMATIONS 10, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES 0, 0, 80
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .festival_girl2_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .festival_girl2_on_interact
@@ -729,7 +776,7 @@
 .festival_girl2_on_interact:
     PAUSE_ENTITIES
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .festival_girl2_talk_no_medals
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .festival_girl2_talk_no_medals
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 31
 
 .festival_girl2_talk_done:
@@ -750,7 +797,7 @@
     SET_ENTITY_ANIMATIONS 11, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES 96, 0, 112
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .festival_girl3_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .festival_girl3_on_interact
@@ -759,7 +806,7 @@
 .festival_girl3_on_interact:
     PAUSE_ENTITIES
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .festival_girl3_talk_told_you
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .festival_girl3_talk_told_you
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 33
 
 .festival_girl3_talk_done:
@@ -778,7 +825,7 @@
     SET_ENTITY_ANIMATIONS 12, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES 128, 0, 144
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .old_man_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .old_man_on_interact
@@ -799,7 +846,7 @@
     SET_ENTITY_ANIMATIONS 13, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES 160, 0, 144
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .old_woman_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .old_woman_on_interact
@@ -826,7 +873,7 @@
     SET_ENTITY_ANIMATIONS 14, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES 160, 0, -144
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .maria_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .maria_on_interact
@@ -836,8 +883,12 @@
     PAUSE_ENTITIES
     FLIP_ENTITY_DIRECTION 0
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .maria_post_race_on_interact
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .maria_post_race_on_interact
+#ifdef _JP
+    BRANCH_U8_VAR_WITHIN_RANGE 0, 0, gWife, .maria_wife_talk_glad
+#else
     BRANCH_ON_SPECIAL_BIT 0, lifeEventBits[0], .maria_check_wife
+#endif
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 0
 
 .maria_talk_done:
@@ -846,25 +897,33 @@
     TOGGLE_PAUSE_ENTITIES
     EXECUTE_SUBROUTINE .maria_wait
 
+#ifndef _JP
 .maria_check_wife:
     BRANCH_U8_VAR_WITHIN_RANGE 0, 0, gWife, .maria_wife_talk_glad
     RETURN_FROM_SUBROUTINE
+#endif
 
 .maria_wife_talk_glad:
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 1
     EXECUTE_SUBROUTINE .maria_talk_done
 
 .maria_post_race_on_interact:
+#ifdef _JP
+    BRANCH_U8_VAR_WITHIN_RANGE 0, 0, gWife, .maria_post_race_check_won
+#else
     BRANCH_ON_SPECIAL_BIT 0, lifeEventBits[0], .maria_post_race_check_wife
+#endif
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 56
     EXECUTE_SUBROUTINE .maria_talk_done
 
+#ifndef _JP
 .maria_post_race_check_wife:
     BRANCH_U8_VAR_WITHIN_RANGE 0, 0, gWife, .maria_post_race_check_won
     RETURN_FROM_SUBROUTINE
+#endif
 
 .maria_post_race_check_won:
-    BRANCH_ON_SPECIAL_BIT 1, D_801C3F78, .maria_post_race_talk_surprised
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_WON, raceStateFlags, .maria_post_race_talk_surprised
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 56
     EXECUTE_SUBROUTINE .maria_talk_done
 
@@ -882,7 +941,7 @@
     SET_ENTITY_ANIMATIONS 15, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES -64, 0, -56
-    SET_ASSET_ROTATION SOUTHWEST
+    SET_ASSET_ROTATION 0
 
 .karen_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .karen_on_interact
@@ -892,7 +951,7 @@
     PAUSE_ENTITIES
     EXECUTE_SUBROUTINE .setup_message_box
     FLIP_ENTITY_DIRECTION 0
-    BRANCH_ON_SPECIAL_BIT 2, D_801C3F78, .karen_post_race
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags, .karen_post_race
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 28
 
 .karen_talk_done:
@@ -902,7 +961,7 @@
     EXECUTE_SUBROUTINE .karen_wait
 
 .karen_post_race:
-    BRANCH_ON_SPECIAL_BIT 1, D_801C3F78, .karen_talk_slowpoke
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_WON, raceStateFlags, .karen_talk_slowpoke
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 30
     EXECUTE_SUBROUTINE .karen_talk_done
 
@@ -929,8 +988,8 @@
 ;      to .race_player_first / .race_player_second / .race_end_cleanup.
 
 .cs_race:
-    CLEAR_SPECIAL_BIT 0, D_801C3F78
-    CLEAR_SPECIAL_BIT 3, D_801C3F78
+    CLEAR_SPECIAL_BIT RACE_STATE_BIT_PLAYER_PLACED, raceStateFlags
+    CLEAR_SPECIAL_BIT RACE_STATE_BIT_DOG2_WON, raceStateFlags
     SET_U8_VALUE 0, gRaceFinishOrder
     SET_U8_VALUE 0, gRaceFinishOrder[1]
     SET_U8_VALUE 0, gRaceFinishOrder[2]
@@ -1015,7 +1074,7 @@
     RESET_MESSAGE_BOX_AVATAR 0
     DEACTIVATE_EXECUTOR 26
     SET_WAIT_FRAMES 20
-    BRANCH_ON_SPECIAL_BIT 5, D_801C3F78, .race_player_entered_check_placement
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_IN_RACE, raceStateFlags, .race_player_entered_check_placement
     EXECUTE_SUBROUTINE .race_check_second_place
 
 .race_end_cleanup:
@@ -1036,7 +1095,7 @@
     EXECUTE_SUBROUTINE .race_sfx_loop
 
 .race_player_entered_check_placement:
-    SET_SPECIAL_BIT 0, D_801C3F78
+    SET_SPECIAL_BIT RACE_STATE_BIT_PLAYER_PLACED, raceStateFlags
     BRANCH_U8_VAR_WITHIN_RANGE 1, 1, gRaceFinishOrder, .race_player_first
     EXECUTE_SUBROUTINE .race_check_second_place
 
@@ -1045,11 +1104,11 @@
     EXECUTE_SUBROUTINE .race_end_cleanup
 
 .race_player_second:
-    SET_SPECIAL_BIT 3, D_801C3F78
+    SET_SPECIAL_BIT RACE_STATE_BIT_DOG2_WON, raceStateFlags
     EXECUTE_SUBROUTINE .race_end_cleanup
 
 .race_player_first:
-    SET_SPECIAL_BIT 1, D_801C3F78
+    SET_SPECIAL_BIT RACE_STATE_BIT_PLAYER_WON, raceStateFlags
     SET_OTHER_EXECUTOR_PTR 32, .race_end_fade_black_exit
     SET_OTHER_EXECUTOR_PTR 30, .race_end_fade_black
     SET_OTHER_EXECUTOR_PTR 31, .race_end_fade_black
@@ -1099,7 +1158,7 @@
     STOP_SEQUENCE_WITH_FADE 0, 1
     IDLE_WHILE_SEQUENCE_PLAYING 0
     SET_U8_VALUE 1, gMinutes
-    SET_SPECIAL_BIT 2, D_801C3F78
+    SET_SPECIAL_BIT RACE_STATE_BIT_RACE_FINALIZED, raceStateFlags
     SET_SPECIAL_BIT 1, gCutsceneCompletionFlags
     EXECUTE_SUBROUTINE .exit_cutscene
 
@@ -1188,7 +1247,7 @@
     DMA_SPRITE 136, 1, _dogTextureSegmentRomStart, _dogTextureSegmentRomEnd, _dogAssetsIndexSegmentRomStart, _dogAssetsIndexSegmentRomEnd, _dogSpritesheetIndexSegmentRomStart, _dogSpritesheetIndexSegmentRomEnd, 0x8027C400, 0x8027CD08, 0x8027D610, 0x8027D810, 0x8027F400, 0x8027F600
     SET_ANIM_DATA_PTR_WITH_FLAG .anim_14495C
     SET_SPRITE_PALETTE 6
-    BRANCH_ON_SPECIAL_BIT 5, D_801C3F78, .dog1_setup_player_owned
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_IN_RACE, raceStateFlags, .dog1_setup_player_owned
     SET_COORDINATES 96, 24, 0
     SET_RGBA 0, 0, 0, 0
     SET_WAIT_FRAMES 1
@@ -1205,7 +1264,7 @@
     DMA_SPRITE 137, 1, _dogTextureSegmentRomStart, _dogTextureSegmentRomEnd, _dogAssetsIndexSegmentRomStart, _dogAssetsIndexSegmentRomEnd, _dogSpritesheetIndexSegmentRomStart, _dogSpritesheetIndexSegmentRomEnd, 0x8027FC00, 0x80280508, 0x80280E10, 0x80281010, 0x80282C00, 0x80282E00
     SET_ANIM_DATA_PTR_WITH_FLAG .anim_14495C
     SET_SPRITE_PALETTE 4
-    BRANCH_ON_SPECIAL_BIT 6, D_801C3F78, .dog2_setup_alt_palette
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_RIVAL_IN_RACE, raceStateFlags, .dog2_setup_alt_palette
     SET_COORDINATES 96, 0, 5
     SET_RGBA 0, 0, 0, 0
     SET_WAIT_FRAMES 1
@@ -1285,7 +1344,7 @@
 
 .sub_140F98:
     SET_ANIM_DATA_PTR .anim_144968
-    BRANCH_ON_SPECIAL_BIT 5, D_801C3F78, .branch_141088
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_IN_RACE, raceStateFlags, .branch_141088
     BRANCH_U16_VAR_WITHIN_RANGE 1, 2, gRacingContext.displayOddsTop[0], .branch_14100C
     BRANCH_U16_VAR_WITHIN_RANGE 3, 6, gRacingContext.displayOddsTop[0], .branch_141010
     BRANCH_U16_VAR_WITHIN_RANGE 9, 15, gRacingContext.displayOddsTop[0], .branch_141024
@@ -3569,7 +3628,7 @@
 ; ============================================================
 ; The closing scene after all 3 races are run. Mayor greets the
 ; player; dialogue depends on whether the player dog finished 1st
-; (bit 1 of D_801C3F78). If so, the winner celebration subsystem
+; (bit 1 of raceStateFlags). If so, the winner celebration subsystem
 ; below is triggered from inside .cs_race (not here).
 ;   mayor default ................. text 43
 ;   post-race + 1st place ......... text 44 (bit 1)
@@ -3578,7 +3637,7 @@
     SPAWN_EXECUTOR 1, .post_race_mayor_setup
     EXECUTE_SUBROUTINE .setup_player
     SET_COORDINATES -256, 0, 96
-    SET_ASSET_ROTATION EAST
+    SET_ASSET_ROTATION 5
     SET_WAIT_FRAMES 1
     UPDATE_GLOBAL_RGBA 254, 254, 254, 254, 0
     WAIT_RGBA_FINISHED
@@ -3593,7 +3652,7 @@
     SET_ENTITY_ANIMATIONS 1, 0, 8, 0, 0, 0, 0
     SET_BEHAVIOR_FLAGS 0
     SET_COORDINATES -224, 0, 64
-    SET_ASSET_ROTATION WEST
+    SET_ASSET_ROTATION 1
 
 .post_race_mayor_wait:
     SET_CALLBACK_ROUTINE 0, 32768, .post_race_mayor_on_interact
@@ -3603,7 +3662,7 @@
     PAUSE_ENTITIES
     FLIP_ENTITY_DIRECTION 0
     EXECUTE_SUBROUTINE .setup_message_box
-    BRANCH_ON_SPECIAL_BIT 1, D_801C3F78, .post_race_mayor_talk_rest
+    BRANCH_ON_SPECIAL_BIT RACE_STATE_BIT_PLAYER_WON, raceStateFlags, .post_race_mayor_talk_rest
     INIT_MESSAGE_BOX_TYPE1 0, DOG_RACE_TEXT_INDEX, 43
 
 .post_race_mayor_talk_done:

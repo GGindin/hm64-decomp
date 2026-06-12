@@ -14,8 +14,7 @@ MapDataAddress mapDataAddresses[96];
 Vec4f targetMapLightingRGBA;
 Vec4f currentMapLightingRGBA;
 
-// RGBA update rate
-s16 D_8017045A;
+s16 currentMapLightingRGBARate;
 
 
 Vec3f previousWorldRotationAngles;
@@ -44,7 +43,7 @@ void initializeMapControllers(void) {
     targetMapLightingRGBA.b = 0;
     targetMapLightingRGBA.a = 0;
     
-    D_8017045A = 0;
+    currentMapLightingRGBARate = 0;
     
     for (i = 0; i < MAX_MAPS; i++) {
         
@@ -161,7 +160,7 @@ bool loadMap(u16 index, u16 mapIndex) {
         mapControllers[index].rotation = 0;
         
         setMapControllerViewPosition(MAIN_MAP_INDEX, 0.0f, 0.0f, 0.0f);
-        setInitialMapRotation(MAIN_MAP_INDEX, SOUTHWEST);
+        setInitialMapRotation(MAIN_MAP_INDEX, MAP_ROTATION_S);
         setMapViewPositionAndCurrentTile(MAIN_MAP_INDEX, 0.0f, 0.0f, 0.0f, 0, 0);
         setMapRGBA(mapControllers[index].mainMapIndex, 0, 0, 0, 0);
         
@@ -329,7 +328,7 @@ bool setMapControllerRGBAWithTransition(u16 mapIndex, u8 r, u8 g, u8 b, u8 a, s1
         targetMapLightingRGBA.b = b;
         targetMapLightingRGBA.a = a;
         
-        D_8017045A = rate;
+        currentMapLightingRGBARate = rate;
         
         result = TRUE;
 

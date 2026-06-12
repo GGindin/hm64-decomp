@@ -25,6 +25,7 @@
 
 #include "buffers/buffers.h"
 
+#include "assetIndices/cutscenes.h"
 #include "assetIndices/dialogues.h"
 #include "assetIndices/sequences.h"
 #include "assetIndices/sfxs.h"
@@ -41,7 +42,7 @@ NamingScreenContext namingScreenContext;
 
 // data
 // japanese strings
-u8 D_8011C680[13][6] = { 
+u8 prohibitedNamesJP[13][6] = { 
     { 0x6E, 0x77, 0xE1, 0xFF, 0xFF, 0xFF },
     { 0x96, 0x94, 0x77, 0xFF, 0xFF, 0xFF },
     { 0x53, 0x77, 0x9D, 0xFF, 0xFF, 0xFF },
@@ -127,6 +128,7 @@ void handleSeasonSelectionInput(void);
 void moveSeasonCursorHorizontally(void);
 void moveSeasonCursorVertically(void);
 void handleNamingGridInput(void);
+bool checkNameProhibited(void);
 
 
 static inline int getSpriteIndexFromFlags(u16 flags) {
@@ -293,7 +295,7 @@ void namingScreenCallback(void) {
 
                  case NAMING_SCREEN_TYPE_HORSE:
                     setLevelAudio(gBaseMapIndex, gSeason, gHour);
-                    gCutsceneIndex = 651;
+                    gCutsceneIndex = CUTSCENE_RANCH_HORSE_NAMING_FOLLOWUP;
                     loadCutscene();
                     exitOverlayScreen();
                     setLevelLighting(8, MAIN_GAME);
@@ -306,23 +308,23 @@ void namingScreenCallback(void) {
 
                     switch (gWife) {
                         case MARIA:
-                            gCutsceneIndex = 5;
+                            gCutsceneIndex = CUTSCENE_HOUSE_MARIA_AFTER_BABY_NAMING;
                             clearSpecialDialogueBit(MARIA_PREGNANT_DIALOGUE);
                             break;
-                        case POPURI:                            
-                            gCutsceneIndex = 12;
+                        case POPURI:
+                            gCutsceneIndex = CUTSCENE_HOUSE_POPURI_AFTER_BABY_NAMING;
                             clearSpecialDialogueBit(POPURI_PREGNANT_DIALOGUE);
                             break;
-                        case ELLI:                            
-                            gCutsceneIndex = 19;
+                        case ELLI:
+                            gCutsceneIndex = CUTSCENE_HOUSE_ELLI_AFTER_BABY_NAMING;
                             clearSpecialDialogueBit(ELLI_PREGNANT_DIALOGUE);
                             break;
-                        case ANN:                            
-                            gCutsceneIndex = 26;
+                        case ANN:
+                            gCutsceneIndex = CUTSCENE_HOUSE_ANN_AFTER_BABY_NAMING;
                             clearSpecialDialogueBit(ANN_PREGNANT_DIALOGUE);
                             break;
-                        case KAREN:                            
-                            gCutsceneIndex = 33;
+                        case KAREN:
+                            gCutsceneIndex = CUTSCENE_HOUSE_KAREN_AFTER_BABY_NAMING;
                             clearSpecialDialogueBit(KAREN_PREGNANT_DIALOGUE);
                             break;
                         }
@@ -504,7 +506,11 @@ void loadNameSelectionSprites(void) {
     setSpriteViewSpacePosition(0x91, 0.0f, 0.0f, 20.0f);
     
     startSpriteAnimation(0x80, 3, 0);
+#ifdef _JP
+    startSpriteAnimation(0x81, 1, 0);
+#else
     startSpriteAnimation(0x81, 1, 2);
+#endif
     startSpriteAnimation(0x82, 2, 0);
     startSpriteAnimation(0x8F, 0, 0);
     startSpriteAnimation(LANDSCAPE_BACKGROUND, 0, 0);
@@ -563,7 +569,11 @@ void loadNameSelectionSprites(void) {
     namingScreenContext.gridY = 0;
     namingScreenContext.gridX = 0;
     namingScreenContext.unk_1C = 0;
+#ifdef _JP
+    namingScreenContext.flags = 0;
+#else
     namingScreenContext.flags = NAMING_SCREEN_CHARSET_ENGLISH;
+#endif
 
     namingScreenContext.cursor.x = -126.0f;
     namingScreenContext.cursor.y = 16.0f;
@@ -690,7 +700,14 @@ bool selectCharacterOrConfirm(void) {
 
                 initializeDialogueSession(0, DIALOGUE_NAMING_SCREEN, 8, 0);
                 namingScreenContext.flags |= NAMING_SCREEN_EMPTY_NAME_ERROR;
-            
+
+#ifdef _JP
+            } else if (!checkNameProhibited()) {
+                initializeDialogueSession(0, DIALOGUE_NAMING_SCREEN, 13, 0);
+                namingScreenContext.flags |= NAMING_SCREEN_EMPTY_NAME_ERROR;
+                return FALSE;
+#endif
+
             } else if (namingScreenContext.screenType == NAMING_SCREEN_TYPE_PLAYER) {
             
                 setMessageBoxRGBAWithTransition(3, 0, 0, 0, 0, 8);
@@ -840,9 +857,58 @@ void moveCursorRight(void) {
 
 }
 
-
 //INCLUDE_ASM("asm/nonmatchings/game/namingScreen", moveCursorUp);
 
+#ifdef _JP
+
+void moveCursorUp(void) {
+
+    f32 x;
+
+    namingScreenContext.cursor.y += 16.0f;
+    namingScreenContext.shadow.y += 16.0f;
+
+    namingScreenContext.gridY--;
+
+    if ((namingScreenContext.gridY << 0x18) < 0) {
+
+        namingScreenContext.gridY = 5;
+        namingScreenContext.cursor.y = -64.0f;
+        namingScreenContext.shadow.y = -54.0f;
+
+        snapCursorToOKButton();
+
+    }
+
+    if (namingScreenContext.gridX >= 10 && namingScreenContext.gridY == 4) {
+
+        if (namingScreenContext.gridX == 11) {
+            namingScreenContext.gridX = 12;
+        } else if (namingScreenContext.gridX != 12 || namingScreenContext.savedGridX >= 13) {
+            namingScreenContext.gridX = namingScreenContext.savedGridX;
+        } else {
+            namingScreenContext.gridX = 13;
+        }
+
+        x = namingScreenContext.gridX * 16.0f;
+
+        namingScreenContext.cursor.y = -48.0f;
+        namingScreenContext.shadow.y = -38.0f;
+        namingScreenContext.cursor.x = x + -126.0f + 6.0f;
+        namingScreenContext.shadow.x = x + -116.0f + 6.0f;
+
+        resetAnimationState(0x82);
+        startSpriteAnimation(0x82, 2, 0);
+
+        resetAnimationState(0x91);
+        startSpriteAnimation(0x91, 2, 0);
+
+        setSpritePaletteIndex(0x91, 3);
+
+    }
+
+}
+#else
 void moveCursorUp(void) {
 
     namingScreenContext.cursor.y += 16.0f;
@@ -882,9 +948,56 @@ void moveCursorUp(void) {
     }
 
 }
+#endif
 
 //INCLUDE_ASM("asm/nonmatchings/game/namingScreen", moveCursorDown);
 
+#ifdef _JP
+
+void moveCursorDown(void) {
+
+    f32 temp_f0;
+    s8 temp_v0;
+    u8 var_v0;
+
+    namingScreenContext.cursor.y -= 16.0f;
+    namingScreenContext.shadow.y -= 16.0f;
+    
+    namingScreenContext.gridY++;
+    
+    if (namingScreenContext.gridY >= 6) {
+        
+        namingScreenContext.gridY = 0;
+        namingScreenContext.cursor.y = 16.0f;
+        namingScreenContext.shadow.y = 26.0f;
+        
+        if (namingScreenContext.gridX >= 10) {
+            
+            if (namingScreenContext.gridX == 11) {
+                namingScreenContext.gridX = 12;
+            } else if ((namingScreenContext.gridX != 12) || (namingScreenContext.savedGridX < 13) == 0) {
+               namingScreenContext.gridX = namingScreenContext.savedGridX;
+            } else {
+                namingScreenContext.gridX = 13;
+            }
+
+            namingScreenContext.cursor.x = (namingScreenContext.gridX * 16.0f) + -126.0f + 6.0f;
+            namingScreenContext.shadow.x = (namingScreenContext.gridX * 16.0f) + -116.0f + 6.0f;
+            
+            resetAnimationState(0x82);
+            startSpriteAnimation(0x82, 2, 0);
+            resetAnimationState(0x91);
+            startSpriteAnimation(0x91, 2, 0);
+            setSpritePaletteIndex(0x91, 3);
+    
+        }
+    
+    }
+    
+    snapCursorToOKButton();
+    
+}
+#else
 void moveCursorDown(void) {
 
     namingScreenContext.cursor.y -= 16.0f;
@@ -924,10 +1037,11 @@ void moveCursorDown(void) {
     snapCursorToOKButton();
 
 }
+#endif
 
 //INCLUDE_ASM("asm/nonmatchings/game/namingScreen", checkNameProhibited);
 
-// unused or inline
+// used in JP; unused in US
 bool checkNameProhibited(void) {
     
     bool processingChar;
@@ -939,8 +1053,8 @@ bool checkNameProhibited(void) {
     int endWord;
     
     u8 *currentNamePtr;
-    u8 *D_8011C680_ptr;
-    u8 *D_8011C680_stringPtr;
+    u8 *prohibitedNamesJP_ptr;
+    u8 *prohibitedNamesJP_stringPtr;
     u8 *namingScreenContextNamePtr;
     
     processedWordCount = 0;
@@ -949,7 +1063,7 @@ bool checkNameProhibited(void) {
     spaceChar = 0xEE;
     endChar = 0xFF;
     
-    D_8011C680_ptr = D_8011C680;
+    prohibitedNamesJP_ptr = prohibitedNamesJP;
     
     while (processedWordCount < 13) {
         
@@ -957,11 +1071,11 @@ bool checkNameProhibited(void) {
         do { 
             processingChar = 0; 
             doneProcessingWord = 0; 
-            D_8011C680_stringPtr = D_8011C680_ptr; 
+            prohibitedNamesJP_stringPtr = prohibitedNamesJP_ptr; 
         } while (0);
         
         currentNamePtr = namingScreenContextNamePtr;
-        endWord = D_8011C680_stringPtr + 6;
+        endWord = prohibitedNamesJP_stringPtr + 6;
         
         do {
         
@@ -969,19 +1083,19 @@ bool checkNameProhibited(void) {
                 
                 processingChar = TRUE;
                 
-                if (*currentNamePtr != *D_8011C680_stringPtr) {
+                if (*currentNamePtr != *prohibitedNamesJP_stringPtr) {
                     
                     if (*currentNamePtr != spaceChar) {
                         doneProcessingWord = TRUE;
                         break;
-                    } else if (*D_8011C680_stringPtr != endChar) {
+                    } else if (*prohibitedNamesJP_stringPtr != endChar) {
                         doneProcessingWord = TRUE;
                         break;
                     }
                     
                 } else {
                 
-                    D_8011C680_stringPtr++;
+                    prohibitedNamesJP_stringPtr++;
                     currentNamePtr++;
                     continue;
                 
@@ -989,22 +1103,22 @@ bool checkNameProhibited(void) {
                 
             }
                     
-            D_8011C680_stringPtr++;
+            prohibitedNamesJP_stringPtr++;
         
             // FIXME
-            if (*D_8011C680_ptr) {
+            if (*prohibitedNamesJP_ptr) {
                 currentNamePtr++;
             } else {
                 currentNamePtr++;
             }
         
-        } while ((s32)D_8011C680_stringPtr < (s32)endWord);
+        } while ((s32)prohibitedNamesJP_stringPtr < (s32)endWord);
             
         if (doneProcessingWord) {
             
             processedWordCount++;
             // skip to next word
-            D_8011C680_ptr += 6;
+            prohibitedNamesJP_ptr += 6;
         
             if (processedWordCount >= 13) {
                 return TRUE;
@@ -1046,6 +1160,101 @@ void deactivateNamingScreenSprites(void) {
 
 //INCLUDE_ASM("asm/nonmatchings/game/namingScreen", updateBottomRowUI);
 
+#ifdef _JP
+void updateBottomRowUI(void) {
+
+    s8 temp;
+
+    if (namingScreenContext.gridY == 5) {
+        
+        temp = namingScreenContext.gridX - 9;
+        
+        switch (temp) {
+
+            case 0:
+                namingScreenContext.cursor.x = 21.0f;
+                namingScreenContext.shadow.x = 31.0f;
+                namingScreenContext.cursor.y = -64.0f;
+                namingScreenContext.shadow.y = -54.0f;
+                resetAnimationState(0x82);
+                startSpriteAnimation(0x82, 2, 0);
+                break;
+            
+            case 1:
+                namingScreenContext.savedGridX = 10;
+                namingScreenContext.cursor.x = 44.0f;
+                namingScreenContext.shadow.x = 54.0f;
+                namingScreenContext.cursor.y = -69.0f;
+                namingScreenContext.shadow.y = -59.0f;
+                resetAnimationState(0x82);
+                startSpriteAnimation(0x82, 2, 2);
+                break;
+            
+            case 2:
+                namingScreenContext.savedGridX = 11;
+                namingScreenContext.cursor.x = 70.0f;
+                namingScreenContext.shadow.x = 80.0f;
+                namingScreenContext.cursor.y = -69.0f;
+                namingScreenContext.shadow.y = -59.0f;
+                resetAnimationState(0x82);
+                startSpriteAnimation(0x82, 2, 3);
+                resetAnimationState(0x91);
+                startSpriteAnimation(0x91, 2, 0);
+                setSpritePaletteIndex(0x91, 3);
+                break;
+
+            case 3:
+
+                namingScreenContext.savedGridX = 12;
+
+                namingScreenContext.cursor.x = 100.0f;
+                namingScreenContext.cursor.y = -95.0f;
+                
+                resetAnimationState(0x82);
+                resetAnimationState(0x91);
+                startSpriteAnimation(0x91, 2, 1);
+                setSpritePaletteIndex(0x91, 4); 
+
+                break;
+
+            case 4:
+                
+                namingScreenContext.gridX = 0;
+
+                namingScreenContext.cursor.x = -126.0f;
+                namingScreenContext.shadow.x = -116.0f;
+                namingScreenContext.cursor.y = -64.0f;
+                namingScreenContext.shadow.y = -54.0f;
+
+                resetAnimationState(0x82);
+                startSpriteAnimation(0x82, 2, 0);
+                resetAnimationState(0x91);
+                startSpriteAnimation(0x91, 2, 0);
+                setSpritePaletteIndex(0x91, 3);
+                
+                break;
+            
+            case 5:
+
+                namingScreenContext.savedGridX = 13;
+                namingScreenContext.gridX = 12;
+
+                namingScreenContext.cursor.x = 100.0f;
+                namingScreenContext.cursor.y = -95.0f;
+
+                resetAnimationState(0x82);
+                resetAnimationState(0x91);
+                startSpriteAnimation(0x91, 2, 1);
+                setSpritePaletteIndex(0x91, 4);
+            
+                break;
+            
+        }
+    
+    }
+    
+}
+#else
 void updateBottomRowUI(void) {
 
     s8 temp;
@@ -1127,9 +1336,57 @@ void updateBottomRowUI(void) {
         }
     }
 }
+#endif
 
 //INCLUDE_ASM("asm/nonmatchings/game/namingScreen", snapCursorToOKButton);
 
+#ifdef _JP
+void snapCursorToOKButton(void) {
+    
+    if (namingScreenContext.gridY == 5) {
+    
+        if (9 < namingScreenContext.gridX && namingScreenContext.gridX < 12) {
+        
+            namingScreenContext.savedGridX = namingScreenContext.gridX;
+            namingScreenContext.gridX = 0xA;
+            namingScreenContext.cursor.x = 44.0f;
+            namingScreenContext.shadow.x = 54.0f;
+            namingScreenContext.cursor.y = -69.0f;
+            namingScreenContext.shadow.y = -59.0f;
+            
+            resetAnimationState(0x82);
+            startSpriteAnimation(0x82, 2, 2);
+        
+        } else if (namingScreenContext.gridX == 12) {
+            
+            namingScreenContext.savedGridX = namingScreenContext.gridX;
+            namingScreenContext.gridX = 0xB;
+            namingScreenContext.cursor.x = 70.0f;
+            namingScreenContext.shadow.x = 80.0f;
+            namingScreenContext.cursor.y = -69.0f;
+            namingScreenContext.shadow.y = -59.0f;
+            
+            resetAnimationState(0x82);
+            startSpriteAnimation(0x82, 2, 3);
+        
+        } else if (namingScreenContext.gridX >= 13) {
+        
+            namingScreenContext.savedGridX = namingScreenContext.gridX;
+            namingScreenContext.gridX = 0xC;
+            namingScreenContext.cursor.x = 100.0f;
+            namingScreenContext.cursor.y = -95.0f;
+            
+            resetAnimationState(0x82);
+            resetAnimationState(0x91);
+            startSpriteAnimation(0x91, 2, 1);
+            setSpritePaletteIndex(0x91, 4);
+        
+        }
+    
+    }
+
+}
+#else
 void snapCursorToOKButton(void) {
     
     if ((namingScreenContext.gridY == 5) && (namingScreenContext.gridX >= 10)) {
@@ -1148,9 +1405,202 @@ void snapCursorToOKButton(void) {
     }
 
 }
+#endif
 
 //INCLUDE_ASM("asm/nonmatchings/game/namingScreen", handleNamingGridInput);
 
+
+#ifdef _JP
+void handleNamingGridInput(void) {
+        
+    bool set = FALSE;
+    s32 index;
+    s32 temp, tempFlags;
+    s32 temp2, tempFlags2;
+    s32 tempCheck;
+
+    if (namingScreenContext.flags & NAMING_SCREEN_EMPTY_NAME_ERROR) {
+        resetAnimationState(0x91);
+        startSpriteAnimation(0x91, 2, 1);
+        setSpritePaletteIndex(0x91, 4);
+        namingScreenContext.flags &= ~NAMING_SCREEN_EMPTY_NAME_ERROR;
+    }
+
+    if (checkButtonRepeat(CONTROLLER_1, BUTTON_STICK_NORTHWEST)) {
+        set = TRUE;
+        moveCursorLeft();
+        setSfx(3);
+        setSfxVolume(3, SFX_VOLUME);
+    }
+
+    if (!set) {
+        if (checkButtonRepeat(CONTROLLER_1, BUTTON_STICK_SOUTHEAST)) {
+            set = TRUE;
+            moveCursorRight();
+            setSfx(3);
+            setSfxVolume(3, SFX_VOLUME);
+        }
+    }
+
+    if (!set) {
+        if (checkButtonRepeat(CONTROLLER_1, BUTTON_STICK_SOUTHWEST)) {
+            set = TRUE;
+            moveCursorDown();
+            setSfx(3);
+            setSfxVolume(3, SFX_VOLUME);
+        }
+    }
+
+    if (!set) {
+
+        if (checkButtonRepeat(CONTROLLER_1, BUTTON_STICK_NORTHEAST)) {
+            moveCursorUp();
+            set = TRUE;
+            setSfx(3);
+            setSfxVolume(3, SFX_VOLUME);
+        }
+    }
+
+    if (!set) {
+
+        if (checkButtonPressed(CONTROLLER_1, BUTTON_A)) {
+
+            set = TRUE;
+            setSfx(1);
+            setSfxVolume(CLOSE, SFX_VOLUME);
+
+            if (selectCharacterOrConfirm()) {
+                return;
+            }
+            
+        }       
+            
+        
+    }
+
+    if (!set) {
+            
+        if (checkButtonPressed(CONTROLLER_1, BUTTON_B)) {
+
+            set = TRUE;
+            setSfx(1);
+            setSfxVolume(CLOSE, SFX_VOLUME);
+            
+            index = getSpriteIndexFromFlags(namingScreenContext.flags);
+            
+            if (index >= 0) {
+                
+                namingScreenContext.name[index] = 0xFF;
+
+                setSpriteIndexOnFlags(index);
+
+                startSpriteAnimation(NAMING_SCREEN_SPRITES_BASE + index, 2, 0);
+                
+                if (index != 5) {
+                    startSpriteAnimation(0x8A + index, 2, 1);
+                }
+                
+            }
+
+                
+        }        
+    } 
+
+    if (!set) {
+            
+        if (checkButtonPressed(CONTROLLER_1, BUTTON_R)) {
+
+            set = TRUE;
+            tempCheck = namingScreenContext.flags & NAMING_SCREEN_CHARSET_MASK;
+            
+            setSfx(9);
+            setSfxVolume(9, SFX_VOLUME);
+            resetAnimationState(0x81);
+
+            switch (tempCheck) {
+                case NAMING_SCREEN_CHARSET_HIRAGANA:
+                    temp = NAMING_SCREEN_CHARSET_KATAKANA;
+                    tempFlags = NAMING_SCREEN_CHARSET_KATAKANA;
+                    break;
+                case NAMING_SCREEN_CHARSET_KATAKANA:
+                    temp = NAMING_SCREEN_CHARSET_ENGLISH;
+                    tempFlags = NAMING_SCREEN_CHARSET_ENGLISH;
+                    break;
+                case NAMING_SCREEN_CHARSET_ENGLISH:
+                    temp = NAMING_SCREEN_CHARSET_HIRAGANA;
+                    tempFlags = NAMING_SCREEN_CHARSET_HIRAGANA;
+                    break;
+            }
+
+            startSpriteAnimation(0x81, 1, temp);
+            namingScreenContext.flags &= ~NAMING_SCREEN_CHARSET_MASK;
+            namingScreenContext.flags |= (tempFlags & NAMING_SCREEN_CHARSET_MASK);
+
+        }
+
+    }
+
+    if (!set) {
+
+        if (checkButtonPressed(CONTROLLER_1, BUTTON_Z)) {
+
+            set = TRUE;
+            tempCheck = namingScreenContext.flags & NAMING_SCREEN_CHARSET_MASK;
+            setSfx(9);
+            setSfxVolume(9, SFX_VOLUME);
+            resetAnimationState(0x81);
+
+            switch (tempCheck) {
+                case NAMING_SCREEN_CHARSET_HIRAGANA:
+                    temp2 = NAMING_SCREEN_CHARSET_ENGLISH;
+                    tempFlags2 = NAMING_SCREEN_CHARSET_ENGLISH;
+                    break;
+                case NAMING_SCREEN_CHARSET_KATAKANA:
+                    temp2 = NAMING_SCREEN_CHARSET_HIRAGANA;
+                    tempFlags2 = NAMING_SCREEN_CHARSET_HIRAGANA;
+                    break;
+                case NAMING_SCREEN_CHARSET_ENGLISH:
+                    temp2 = NAMING_SCREEN_CHARSET_KATAKANA;
+                    tempFlags2 = NAMING_SCREEN_CHARSET_KATAKANA;
+                    break;
+            }
+
+            startSpriteAnimation(0x81, 1, temp2);
+            namingScreenContext.flags &= ~NAMING_SCREEN_CHARSET_MASK;
+            namingScreenContext.flags |= (tempFlags2 & NAMING_SCREEN_CHARSET_MASK);
+
+        }
+
+    }
+    
+    if (!set) { 
+        
+        if (checkButtonPressed(CONTROLLER_1, BUTTON_START)) {
+
+            namingScreenContext.savedGridX = 14;
+            namingScreenContext.gridX = 12;
+            namingScreenContext.gridY = 5;
+                    
+            namingScreenContext.cursor.x = 100.0f;
+            namingScreenContext.cursor.y = -95.0f;
+            
+            resetAnimationState(0x82);
+            resetAnimationState(0x91);
+            startSpriteAnimation(0x91, 2, 1);
+            setSpritePaletteIndex(0x91, 4);
+            
+            setSfx(3);
+            setSfxVolume(3, SFX_VOLUME);
+        
+        }
+
+    }
+
+    setSpriteViewSpacePosition(0x80, namingScreenContext.cursor.x, namingScreenContext.cursor.y, 20.0f);
+    setSpriteViewSpacePosition(0x82, namingScreenContext.shadow.x, namingScreenContext.shadow.y, 5.0f);
+
+}
+#else
 void handleNamingGridInput(void) {
         
     bool set = FALSE;
@@ -1269,6 +1719,7 @@ void handleNamingGridInput(void) {
     setSpriteViewSpacePosition(0x82, namingScreenContext.shadow.x, namingScreenContext.shadow.y, 5.0f);
 
 }
+#endif
 
 //INCLUDE_ASM("asm/nonmatchings/game/namingScreen", loadSeasonSelectionSprites);
 
